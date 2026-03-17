@@ -29,6 +29,10 @@
 .tmp*
 tmp-*
 dev*.log
+prisma/*.db
+prisma/*.db-*
+*.sqlite
+*.sqlite-journal
 
 # env files
 .env*
