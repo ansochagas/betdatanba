@@ -1,0 +1,11 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="300" fill="#1a1a1a"/>
+  <rect x="50" y="50" width="300" height="200" fill="#2a2a2a" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="200" y="120" text-anchor="middle" fill="#8b5cf6" font-family="Arial, sans-serif" font-size="24" font-weight="bold">VANTAGEM COMPETITIVA</text>
+  <text x="200" y="150" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16">Use nossos insights para</text>
+  <text x="200" y="170" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16">entender tendências e previsões</text>
+  <path d="M 150 200 L 170 220 L 190 200" stroke="#8b5cf6" stroke-width="3" fill="none"/>
+  <path d="M 210 200 L 230 220 L 250 200" stroke="#10b981" stroke-width="3" fill="none"/>
+  <circle cx="200" cy="235" r="15" fill="#f59e0b"/>
+  <text x="200" y="240" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="12">GOLD</text>
+</svg>

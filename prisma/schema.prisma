@@ -1,0 +1,260 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // Use variável de ambiente para evitar expor credenciais
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  password      String
+  name          String
+  phone         String?     @unique
+  phoneVerifiedAt DateTime?
+  telegramId    String?     @unique // ID do Telegram para vinculação
+  createdAt     DateTime    @default(now())
+  subscription  Subscription?
+  telegramConfig TelegramConfig?
+  linkCodes     TelegramLinkCode[]
+}
+
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  billingProvider   String   @default("stripe")
+  providerCustomerId String? @unique
+  providerSubscriptionId String? @unique
+  stripeCustomerId  String?  @unique
+  status            String   // active, trialing, canceled, past_due
+  planId            String   // pro_plan
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean @default(false)
+  trialEndsAt       DateTime?
+  createdAt         DateTime @default(now())
+}
+
+model MatchPrediction {
+  id               String   @id @default(cuid())
+  matchId          String
+  source           String
+  homeTeam         String
+  awayTeam         String
+  homeTeamId       Int?
+  awayTeamId       Int?
+  tournament       String?
+  scheduledAt      DateTime?
+  predictedWinner  String
+  confidence       Float
+  status           String   @default("PENDING") // PENDING, WIN, LOSS, VOID
+  actualWinner     String?
+  scoreHome        Int?
+  scoreAway        Int?
+  resolvedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([matchId, source], name: "matchId_source")
+  @@index([status])
+  @@map("match_predictions")
+}
+
+model CSGOMatch {
+  id                String   @id @default(cuid())
+  externalId        String   @unique // ID da SofaSport API
+  eventId           String   // ID do evento na SofaSport
+  map               String   // Mapa do CS:GO (Nuke, Vertigo, etc.)
+  homeTeam          String   // Time da casa
+  awayTeam          String   // Time visitante
+  homeScore         Int      @default(0) // Placar do time da casa
+  awayScore         Int      @default(0) // Placar do time visitante
+  winner            String?  // 'home', 'away', ou null
+  duration          Int      // Duração em segundos
+  startTime         DateTime // Data e hora do jogo
+  status            String   @default("scheduled") // scheduled, live, finished, cancelled
+  hasStats          Boolean  @default(false) // Se tem estatísticas completas
+
+  // Odds atuais (atualizadas em tempo real)
+  odds              CSGOOdds[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("csgo_matches")
+}
+
+model CSGOOdds {
+  id                String   @id @default(cuid())
+  matchId           String
+  match             CSGOMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  sportsbook        String   // draftkings, betmgm, etc.
+  market            String   // Moneyline, Spread, Total
+  outcomeName       String   // Moneyline, etc.
+  outcomeTarget     String?  // Nome do time ou valor
+  outcomeLine        String?  // Linha do spread/total
+  odds              String   // "1.50", "-150", etc.
+
+  // Probabilidades calculadas
+  impliedProbability Float?  // Probabilidade implícita
+
+  timestamp         DateTime @default(now()) // Quando foi capturado
+
+  @@map("csgo_odds")
+}
+
+model CSGOTeam {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  logo              String?  // URL do logo
+  country           String?
+  aliases           String   @default("[]") // JSON string com nomes alternativos
+
+  // Estatísticas (podem ser calculadas depois)
+  totalMatches      Int      @default(0)
+  wins              Int      @default(0)
+  losses            Int      @default(0)
+  winRate           Float?   // Porcentagem de vitórias
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("csgo_teams")
+}
+
+model CSGOOddsHistory {
+  id                String   @id @default(cuid())
+  matchId           String
+  sportsbook        String
+  market            String
+  outcomeName       String
+  odds              String
+  timestamp         DateTime @default(now())
+
+  @@map("csgo_odds_history")
+}
+
+model Cache {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  data        String   // JSON stringified data
+  expiresAt   DateTime // When cache expires
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cache")
+}
+
+model MatchHistory {
+  id            String   @id @default(cuid())
+  externalId    String   @unique
+  homeTeam      String
+  awayTeam      String
+  winner        String?
+  scoreHome     Int?
+  scoreAway     Int?
+  map           String?
+  tournament    String?
+  matchDate     DateTime
+  duration      Int?     // minutes
+  scrapedAt     DateTime @default(now())
+
+  @@map("match_history")
+}
+
+model TeamStats {
+  teamName            String   @id
+  totalMatches        Int      @default(0)
+  wins                Int      @default(0)
+  losses              Int      @default(0)
+  winRate             Float?
+  avgMapsPerMatch     Float?
+  avgKillsPerMap      Float?
+  avgRoundsWonPerMap  Float?
+  recentForm          String?  // e.g., "W-W-L-W-D"
+  lastMatchDate       DateTime?
+  updatedAt           DateTime @updatedAt
+
+  @@map("team_stats")
+}
+
+model HeadToHead {
+  id                String   @id @default(cuid())
+  team1             String
+  team2             String
+  matchesPlayed     Int      @default(0)
+  team1Wins         Int      @default(0)
+  team2Wins         Int      @default(0)
+  draws             Int      @default(0)
+  lastMatchDate     DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([team1, team2])
+  @@map("head_to_head")
+}
+
+model ScrapedData {
+  id          String   @id @default(cuid())
+  url         String   @unique
+  data        String   // JSON stringified scraped data
+  scrapedAt   DateTime @default(now())
+  expiresAt   DateTime // When to refresh
+  status      String   @default("active") // active, expired, error
+
+  @@map("scraped_data")
+}
+
+model TelegramLinkCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("telegram_link_codes")
+}
+
+model TelegramConfig {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  chatId            String   // Chat ID do Telegram
+  alertsEnabled     Boolean  @default(true)
+  favoriteTeams     String   @default("[]") // JSON string com times favoritos
+  alertTypes        String   @default("[]") // JSON string com tipos de alerta
+  timezone          String   @default("America/Sao_Paulo")
+  language          String   @default("pt-BR")
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("telegram_configs")
+}
+
+model PhoneVerification {
+  id         String   @id @default(cuid())
+  phone      String   @unique
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int      @default(0)
+  sentCount  Int      @default(1)
+  lastSentAt DateTime
+  status     String   @default("PENDING") // PENDING, VERIFIED, BLOCKED
+  ip         String?
+  refer      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([phone])
+}

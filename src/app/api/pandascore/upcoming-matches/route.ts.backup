@@ -1,0 +1,142 @@
+import { NextRequest, NextResponse } from "next/server";
+
+// PandaScore API (plano pago - dados reais)
+const PANDASCORE_API_KEY =
+  "POciMXi8fwRIbuW3qEWvPVqGTv_Yfv55T-_mwp8DzpYOR-1mYjo";
+const PANDASCORE_BASE_URL = "https://api.pandascore.co";
+
+interface PandaScoreMatch {
+  id: number;
+  name: string;
+  begin_at: string;
+  end_at: string | null;
+  scheduled_at: string;
+  opponents: Array<{
+    opponent: {
+      id: number;
+      name: string;
+      image_url: string;
+    };
+    type: string;
+  }>;
+  tournament: {
+    id: number;
+    name: string;
+    tier: string;
+  };
+  videogame: {
+    id: number;
+    name: string;
+  };
+  status: string;
+  league: {
+    id: number;
+    name: string;
+  };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const days = parseInt(searchParams.get("days") || "3");
+
+    console.log(
+      `📅 Buscando jogos CS:GO futuros dos próximos ${days} dias via PandaScore...`
+    );
+
+    // Calcular range de datas
+    const now = new Date();
+    const futureDate = new Date(now);
+    futureDate.setDate(now.getDate() + days);
+
+    // Formatar datas para ISO string
+    const rangeStart = now.toISOString();
+    const rangeEnd = futureDate.toISOString();
+
+    console.log(`📅 Buscando jogos entre ${rangeStart} e ${rangeEnd}`);
+
+    // Buscar jogos futuros da PandaScore API
+    const response = await fetch(
+      `${PANDASCORE_BASE_URL}/csgo/matches?filter[status]=not_started&range[begin_at]=${rangeStart},${rangeEnd}&sort=begin_at&page[size]=100`,
+      {
+        headers: {
+          Authorization: `Bearer ${PANDASCORE_API_KEY}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`PandaScore API error: ${response.status}`);
+    }
+
+    const matches: PandaScoreMatch[] = await response.json();
+
+    console.log(`✅ Recebidos ${matches.length} jogos futuros da PandaScore`);
+
+    // Filtrar apenas jogos válidos (com 2 times)
+    const validMatches = matches.filter(
+      (match) => match.opponents && match.opponents.length === 2
+    );
+
+    console.log(`✅ ${validMatches.length} jogos válidos após filtragem`);
+
+    // Formatar resposta
+    const formattedMatches = validMatches.map((match) => ({
+      id: match.id,
+      externalId: match.id.toString(),
+      homeTeam: match.opponents[0]?.opponent.name || "Unknown",
+      awayTeam: match.opponents[1]?.opponent.name || "Unknown",
+      homeTeamId: match.opponents[0]?.opponent.id || 0,
+      awayTeamId: match.opponents[1]?.opponent.id || 0,
+      tournament: match.tournament.name,
+      league: match.league?.name || match.tournament.name,
+      scheduledAt: match.scheduled_at || match.begin_at,
+      status: "upcoming",
+      gameName: "CS:GO",
+      tier: match.tournament.tier,
+      opponents: match.opponents.map((opp) => ({
+        id: opp.opponent.id,
+        name: opp.opponent.name,
+        logo: opp.opponent.image_url,
+      })),
+      odds: [], // PandaScore não fornece odds diretamente
+    }));
+
+    // Ordenar por data
+    formattedMatches.sort(
+      (a, b) =>
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: formattedMatches,
+      count: formattedMatches.length,
+      days,
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        dataSource: "PandaScore API (plano pago)",
+        dateRange: {
+          from: rangeStart,
+          to: rangeEnd,
+        },
+        totalFromAPI: matches.length,
+        validMatches: validMatches.length,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Erro na API upcoming-matches:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Erro interno",
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          dataSource: "PandaScore API",
+        },
+      },
+      { status: 500 }
+    );
+  }
+}
