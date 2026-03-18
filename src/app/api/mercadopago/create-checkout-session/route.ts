@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       planId,
       userId: (session.user as any).id,
       email: session.user.email,
-      paymentMode: "card",
+      paymentMode: "checkout",
     });
 
     await prisma.subscription.upsert({

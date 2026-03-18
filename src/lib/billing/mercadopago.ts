@@ -77,7 +77,7 @@ export const createMercadoPagoCheckout = async (params: {
   planId: string;
   userId: string;
   email: string;
-  paymentMode: "card" | "pix";
+  paymentMode: "checkout" | "card" | "pix";
 }) => {
   const plan = getBillingPlanConfig(params.planId);
   const baseUrl = getPublicAppUrl();

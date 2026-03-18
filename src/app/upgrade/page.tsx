@@ -60,6 +60,7 @@ const providerLabel =
 export default function Upgrade() {
   const router = useRouter();
   const { status } = useSession();
+  const isMercadoPago = billingProvider === "mercadopago";
   const [loading, setLoading] = useState(false);
   const [loadingPix, setLoadingPix] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(plans[0]?.id || "");
@@ -248,25 +249,36 @@ export default function Upgrade() {
             disabled={loading}
             className="w-full rounded-lg bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4 font-bold text-white shadow-lg transition-all duration-300 hover:from-orange-600 hover:to-red-600 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Processando..." : "Confirmar pagamento"}
+            {loading
+              ? isMercadoPago
+                ? "Redirecionando..."
+                : "Processando..."
+              : isMercadoPago
+                ? "Contratar com Mercado Pago"
+                : "Confirmar pagamento"}
           </button>
           <p className="mt-4 text-center text-xs text-gray-500">
-            Cartao (recorrente) - via {providerLabel}
+            {isMercadoPago
+              ? "No checkout do Mercado Pago voce podera pagar via Pix ou cartao."
+              : `Cartao (recorrente) - via ${providerLabel}`}
           </p>
 
-          <div className="mt-4">
-            <button
-              onClick={handleUpgradePix}
-              disabled={loadingPix}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-6 py-3 font-bold text-white transition-all duration-300 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loadingPix ? "Gerando PIX..." : "Pagar com Pix (pre-pago)"}
-            </button>
-            <p className="mt-2 text-center text-xs text-gray-500">
-              Pix pre-pago: acesso por{" "}
-              {plans.find((p) => p.id === selectedPlan)?.periodDays ?? "X"} dias
-            </p>
-          </div>
+          {!isMercadoPago && (
+            <div className="mt-4">
+              <button
+                onClick={handleUpgradePix}
+                disabled={loadingPix}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-6 py-3 font-bold text-white transition-all duration-300 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingPix ? "Gerando PIX..." : "Pagar com Pix (pre-pago)"}
+              </button>
+              <p className="mt-2 text-center text-xs text-gray-500">
+                Pix pre-pago: acesso por{" "}
+                {plans.find((p) => p.id === selectedPlan)?.periodDays ?? "X"}{" "}
+                dias
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
