@@ -33,6 +33,7 @@ prisma/*.db
 prisma/*.db-*
 *.sqlite
 *.sqlite-journal
+data/*.db
 
 # env files
 .env*
