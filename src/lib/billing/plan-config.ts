@@ -9,6 +9,20 @@ export type BillingPlanConfig = {
   periodDays: number;
 };
 
+type BillingPlanContext = {
+  email?: string | null;
+  userId?: string | null;
+};
+
+export type BillingPlanView = {
+  id: string;
+  name: string;
+  priceDisplay: string;
+  description: string;
+  savings: string | null;
+  periodDays: number;
+};
+
 const CANONICAL_PLAN_BY_ID: Record<string, string> = {
   nba_trial: "nba_trial",
   nba_monthly: "nba_monthly",
@@ -60,6 +74,62 @@ const PLAN_PRICE_MAP: Record<string, Omit<BillingPlanConfig, "periodDays">> = {
   },
 };
 
+const ORDERED_PLAN_IDS = [
+  "nba_monthly",
+  "nba_quarterly",
+  "nba_semestral",
+] as const;
+
+const formatCurrencyBrl = (value: number): string =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+  }).format(value);
+
+const getPromoTesterEmails = (): string[] =>
+  String(process.env.NBA_MONTHLY_TESTER_PROMO_EMAILS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+const getPromoMonthlyPrice = (): number => {
+  const rawValue = Number(process.env.NBA_MONTHLY_TESTER_PROMO_PRICE || "10");
+  if (!Number.isFinite(rawValue) || rawValue <= 0) {
+    return 10;
+  }
+  return Math.round(rawValue * 100) / 100;
+};
+
+export const isMonthlyTesterPromoEligible = (
+  context: BillingPlanContext = {}
+): boolean => {
+  const email = String(context.email || "")
+    .trim()
+    .toLowerCase();
+
+  if (!email) return false;
+  return getPromoTesterEmails().includes(email);
+};
+
+const applyBillingPlanOverrides = (
+  config: BillingPlanConfig,
+  context: BillingPlanContext = {}
+): BillingPlanConfig => {
+  if (
+    config.planId === "nba_monthly" &&
+    isMonthlyTesterPromoEligible(context)
+  ) {
+    return {
+      ...config,
+      unitPrice: getPromoMonthlyPrice(),
+      description: "Acesso completo NBA por 30 dias - valor promocional de validacao",
+    };
+  }
+
+  return config;
+};
+
 export const resolveBillingPlanId = (
   planId: string | null | undefined
 ): string => {
@@ -68,15 +138,63 @@ export const resolveBillingPlanId = (
 };
 
 export const getBillingPlanConfig = (
-  planId: string | null | undefined
+  planId: string | null | undefined,
+  context: BillingPlanContext = {}
 ): BillingPlanConfig => {
   const canonicalPlanId = resolveBillingPlanId(planId);
   const config = PLAN_PRICE_MAP[canonicalPlanId] || PLAN_PRICE_MAP.nba_monthly;
 
-  return {
-    ...config,
-    periodDays: getPlanDurationDays(config.planId),
-  };
+  return applyBillingPlanOverrides(
+    {
+      ...config,
+      periodDays: getPlanDurationDays(config.planId),
+    },
+    context
+  );
+};
+
+export const getBillingPlansForUser = (
+  context: BillingPlanContext = {}
+): BillingPlanView[] => {
+  return ORDERED_PLAN_IDS.map((planId) => {
+    const plan = getBillingPlanConfig(planId, context);
+    const isPromoMonthly =
+      plan.planId === "nba_monthly" && isMonthlyTesterPromoEligible(context);
+
+    let savings: string | null = null;
+    if (plan.planId === "nba_quarterly") {
+      savings = "Economize vs. mensal";
+    } else if (plan.planId === "nba_semestral") {
+      savings = "Mais barato por mes";
+    }
+
+    if (isPromoMonthly) {
+      savings = "Valor temporario para validacao";
+    }
+
+    let priceDisplay = `${formatCurrencyBrl(plan.unitPrice)}/mes`;
+    if (plan.planId === "nba_quarterly") {
+      priceDisplay = `${formatCurrencyBrl(plan.unitPrice)} / 3 meses`;
+    } else if (plan.planId === "nba_semestral") {
+      priceDisplay = `${formatCurrencyBrl(plan.unitPrice)} / 6 meses`;
+    }
+
+    return {
+      id: plan.planId,
+      name: plan.title,
+      priceDisplay,
+      description:
+        isPromoMonthly
+          ? "Acesso completo NBA com valor promocional temporario para teste"
+          : plan.planId === "nba_monthly"
+            ? "Acesso completo NBA com cobranca mensal"
+            : plan.planId === "nba_quarterly"
+              ? "Melhor custo trimestral para NBA"
+              : "Economia maxima no semestre NBA",
+      savings,
+      periodDays: plan.periodDays,
+    };
+  });
 };
 
 export const getMonthlyEquivalentRevenue = (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,7 +9,18 @@ const billingProvider = (
   process.env.NEXT_PUBLIC_BILLING_PROVIDER || "stripe"
 ).toLowerCase();
 
-const plans = [
+type UpgradePlan = {
+  id: string;
+  name: string;
+  priceDisplay: string;
+  description: string;
+  priceId?: string;
+  pixPriceId?: string;
+  savings: string | null;
+  periodDays: number;
+};
+
+const defaultPlans: UpgradePlan[] = [
   {
     id: "nba_monthly",
     name: "NBA Mensal",
@@ -59,11 +70,57 @@ const providerLabel =
 
 export default function Upgrade() {
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const isMercadoPago = billingProvider === "mercadopago";
+  const [plans, setPlans] = useState<UpgradePlan[]>(defaultPlans);
   const [loading, setLoading] = useState(false);
   const [loadingPix, setLoadingPix] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(plans[0]?.id || "");
+  const [selectedPlan, setSelectedPlan] = useState(defaultPlans[0]?.id || "");
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPlans = async () => {
+      try {
+        const response = await fetch("/api/billing/plans", {
+          cache: "no-store",
+        });
+        const payload = await response.json();
+
+        if (!active || !response.ok || !payload?.success || !payload?.data?.plans) {
+          return;
+        }
+
+        setPlans((current) => {
+          const mergedPlans = (payload.data.plans as UpgradePlan[]).map((plan) => {
+            const fallback = defaultPlans.find((item) => item.id === plan.id);
+            return {
+              ...fallback,
+              ...plan,
+            } as UpgradePlan;
+          });
+
+          return mergedPlans.length > 0 ? mergedPlans : current;
+        });
+      } catch (error) {
+        console.error("Erro ao carregar planos de billing:", error);
+      }
+    };
+
+    if (status !== "loading") {
+      loadPlans();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [status, session?.user?.email]);
+
+  useEffect(() => {
+    if (!plans.some((plan) => plan.id === selectedPlan) && plans[0]?.id) {
+      setSelectedPlan(plans[0].id);
+    }
+  }, [plans, selectedPlan]);
 
   const ensureAuth = (): boolean => {
     if (status === "unauthenticated") {
