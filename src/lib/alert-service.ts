@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { getTelegramBot } from "./telegram-bot";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export interface MatchAlert {
   homeTeam: string;

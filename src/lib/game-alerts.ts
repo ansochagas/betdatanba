@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { getTelegramBot } from "./telegram-bot";
 import { getInternalAppUrl } from "@/lib/app-url";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // Cache para evitar alertas duplicados (por 1 hora)
 const sentAlerts = new Map<string, number>();

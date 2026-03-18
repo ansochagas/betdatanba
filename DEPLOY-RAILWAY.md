@@ -89,24 +89,32 @@ Mudancas obrigatorias:
 ## Banco de dados
 
 Estado atual:
-- o projeto ainda usa `sqlite` em `prisma/schema.prisma`
+- o piloto online ainda usa `sqlite` via `DATABASE_URL=file:...`
+- o projeto agora aceita runtime em `sqlite` ou `postgres` sem trocar codigo
+- o provider e detectado automaticamente por:
+  - `PRISMA_PROVIDER`, se definido
+  - ou pelo formato de `DATABASE_URL`
 
 Recomendacao:
 - `piloto`: pode usar SQLite apenas como etapa curta e com volume persistente
 - `comercial`: migrar para PostgreSQL antes de vender
 
 Comandos preparados:
+- `npm run db:generate`
+- `npm run db:generate:all`
 - `npm run db:generate:postgres`
 - `npm run db:push:postgres`
 - `npm run db:migrate:sqlite-to-postgres`
 
 Fluxo sugerido para a migracao:
 1. configurar `POSTGRES_DATABASE_URL`
-2. rodar `npm run db:generate:postgres`
+2. rodar `npm run db:generate:all`
 3. rodar `npm run db:push:postgres`
 4. rodar `RESET_TARGET_DB=true npm run db:migrate:sqlite-to-postgres`
-5. trocar `DATABASE_URL` para o Postgres
-6. validar `/api/health`, login e billing
+5. no Railway, trocar `DATABASE_URL` para a URL Postgres final
+6. opcionalmente definir `PRISMA_PROVIDER=postgres`
+7. fazer um deploy controlado
+8. validar `/api/health`, login, billing e webhooks
 
 Motivo:
 - Postgres reduz risco operacional

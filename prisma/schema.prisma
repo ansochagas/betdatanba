@@ -5,6 +5,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator sqliteClient {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-sqlite"
+}
+
 datasource db {
   provider = "sqlite"
   // Use variável de ambiente para evitar expor credenciais

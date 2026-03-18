@@ -50,6 +50,7 @@ next-env.d.ts
 # generated prisma clients
 /src/generated/prisma
 /src/generated/prisma-postgres
+/src/generated/prisma-sqlite
 
 # prisma migrations
 /prisma/migrations/
