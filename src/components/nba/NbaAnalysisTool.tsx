@@ -80,6 +80,35 @@ const formatBrtDate = (isoDate: string): string => {
   }).format(new Date(isoDate));
 };
 
+const formatBrtDayKey = (isoDate: string): string =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(isoDate));
+
+const formatDaySectionLabel = (dayKey: string): string => {
+  const now = new Date();
+  const todayKey = formatBrtDayKey(now.toISOString());
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowKey = formatBrtDayKey(tomorrow.toISOString());
+
+  if (dayKey === todayKey) return "Hoje";
+  if (dayKey === tomorrowKey) return "Amanha";
+
+  const [year, month, day] = dayKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(date);
+};
+
 const formatPct = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
 const displayOdd = (odd: number): string => {
@@ -211,6 +240,19 @@ export default function NbaAnalysisTool() {
     return index;
   }, [teamStats]);
 
+  const groupedMatches = useMemo(() => {
+    const groups = new Map<string, NbaMatchCard[]>();
+
+    for (const match of matches) {
+      const key = formatBrtDayKey(match.scheduledAt);
+      const existing = groups.get(key) || [];
+      existing.push(match);
+      groups.set(key, existing);
+    }
+
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [matches]);
+
   const findTeamStats = useCallback(
     (teamName: string): TeamSeasonStats | null => {
       const direct = statsIndex.get(normalizeTeam(teamName));
@@ -259,169 +301,188 @@ export default function NbaAnalysisTool() {
     <div className="space-y-5">
       <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-5">
         <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
-          JOGOS DO DIA NBA
+          AGENDA NBA - HOJE E AMANHA
         </h2>
+        <p className="mt-2 text-sm text-zinc-400">
+          O modulo pre-jogo agora considera por padrao a agenda do dia atual e
+          tambem os jogos do proximo dia no horario de Brasilia.
+        </p>
       </div>
 
       <div className="space-y-4">
-        {matches.map((match) => {
-          const homeStats = findTeamStats(match.homeTeam);
-          const awayStats = findTeamStats(match.awayTeam);
-          const insight = buildPreGameInsight(match, homeStats, awayStats);
-
-          return (
-            <article
-              key={match.id}
-              className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-4 shadow-lg shadow-black/20 sm:p-5"
-            >
-              <div className="flex flex-col gap-3 border-b border-zinc-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-zinc-400">{match.league}</p>
-                  <h3 className="text-lg font-bold text-white sm:text-xl">
-                    {match.homeTeam} vs {match.awayTeam}
-                  </h3>
-                </div>
-                <div className="text-left sm:text-right">
-                  <p className="text-[11px] uppercase tracking-wide text-zinc-500">Horario BRT</p>
-                  <p className="text-base font-semibold text-zinc-100">{formatBrtDate(match.scheduledAt)}</p>
-                </div>
+        {groupedMatches.map(([dayKey, dateMatches]) => (
+          <section key={dayKey} className="space-y-4">
+            <div className="rounded-xl border border-zinc-700 bg-zinc-900/40 px-4 py-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-lg font-bold text-white">
+                  {formatDaySectionLabel(dayKey)}
+                </h3>
+                <p className="text-xs uppercase tracking-wide text-zinc-400">
+                  {dateMatches.length} jogo(s) na agenda
+                </p>
               </div>
+            </div>
 
-              <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-4 text-xs text-zinc-300">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-bold tracking-wide text-zinc-100">DADOS DO CONFRONTO</p>
-                  <Link
-                    href={buildPlayerAnalysisHref(match)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex w-full items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-100 transition hover:border-orange-300/50 hover:bg-orange-500/20 sm:w-auto"
-                  >
-                    Analise dos jogadores
-                  </Link>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">Moneyline Casa</p>
-                    <p className="mt-1 text-lg font-bold text-zinc-100">{displayOdd(match.odds.moneyline.home)}</p>
-                  </div>
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">Moneyline Fora</p>
-                    <p className="mt-1 text-lg font-bold text-zinc-100">{displayOdd(match.odds.moneyline.away)}</p>
-                  </div>
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">Spread Projetado</p>
-                    <p className="mt-1 text-lg font-bold text-zinc-100">
-                      {insight.projectedSpread !== null ? insight.projectedSpread : "--"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">Total Projetado</p>
-                    <p className="mt-1 text-lg font-bold text-zinc-100">
-                      {insight.projectedTotal !== null ? insight.projectedTotal : "--"}
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {dateMatches.map((match) => {
+              const homeStats = findTeamStats(match.homeTeam);
+              const awayStats = findTeamStats(match.awayTeam);
+              const insight = buildPreGameInsight(match, homeStats, awayStats);
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {[
-                  {
-                    key: "home",
-                    teamName: match.homeTeam,
-                    logoUrl: match.homeTeamLogo || getNbaTeamIdentity(match.homeTeam).logoUrl,
-                    odd: match.odds.moneyline.home,
-                    stats: homeStats,
-                  },
-                  {
-                    key: "away",
-                    teamName: match.awayTeam,
-                    logoUrl: match.awayTeamLogo || getNbaTeamIdentity(match.awayTeam).logoUrl,
-                    odd: match.odds.moneyline.away,
-                    stats: awayStats,
-                  },
-                ].map((team) => (
-                  <div key={team.key} className="rounded-lg border border-zinc-700 bg-zinc-950/80 p-4">
-                    <div className="flex items-start gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={team.logoUrl}
-                        alt={`${team.teamName} logo`}
-                        className="h-10 w-10 rounded-md bg-zinc-900 object-contain"
-                      />
-                      <div className="min-w-0">
-                        <p className="break-words text-base font-bold text-white sm:text-lg">{team.teamName}</p>
-                        <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                          Moneyline: <span className="font-mono text-zinc-200">{displayOdd(team.odd)}</span>
+              return (
+                <article
+                  key={match.id}
+                  className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-4 shadow-lg shadow-black/20 sm:p-5"
+                >
+                  <div className="flex flex-col gap-3 border-b border-zinc-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-zinc-400">{match.league}</p>
+                      <h3 className="text-lg font-bold text-white sm:text-xl">
+                        {match.homeTeam} vs {match.awayTeam}
+                      </h3>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-[11px] uppercase tracking-wide text-zinc-500">Horario BRT</p>
+                      <p className="text-base font-semibold text-zinc-100">{formatBrtDate(match.scheduledAt)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-4 text-xs text-zinc-300">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm font-bold tracking-wide text-zinc-100">DADOS DO CONFRONTO</p>
+                      <Link
+                        href={buildPlayerAnalysisHref(match)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex w-full items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-100 transition hover:border-orange-300/50 hover:bg-orange-500/20 sm:w-auto"
+                      >
+                        Analise dos jogadores
+                      </Link>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Moneyline Casa</p>
+                        <p className="mt-1 text-lg font-bold text-zinc-100">{displayOdd(match.odds.moneyline.home)}</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Moneyline Fora</p>
+                        <p className="mt-1 text-lg font-bold text-zinc-100">{displayOdd(match.odds.moneyline.away)}</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Spread Projetado</p>
+                        <p className="mt-1 text-lg font-bold text-zinc-100">
+                          {insight.projectedSpread !== null ? insight.projectedSpread : "--"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Total Projetado</p>
+                        <p className="mt-1 text-lg font-bold text-zinc-100">
+                          {insight.projectedTotal !== null ? insight.projectedTotal : "--"}
                         </p>
                       </div>
                     </div>
-
-                    {team.stats ? (
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Classificacao atual</p>
-                          <p className="mt-1 text-lg font-bold text-zinc-100">#{team.stats.rank.overall}</p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Winrate</p>
-                          <p className="mt-1 text-lg font-bold text-zinc-100">{formatPct(team.stats.winRate)}</p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Media pontos ofensivos</p>
-                          <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsFor.toFixed(1)}</p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Media pontos tomados</p>
-                          <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsAgainst.toFixed(1)}</p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Record</p>
-                          <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.record.wins}-{team.stats.record.losses}</p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Descanso</p>
-                          <p className="mt-1 text-base font-semibold text-zinc-100">{formatRest(team.stats.restDays)}</p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Casa</p>
-                          <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.homeRecord.wins}-{team.stats.homeRecord.losses}</p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Fora</p>
-                          <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.awayRecord.wins}-{team.stats.awayRecord.losses}</p>
-                        </div>
-                        <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">Ultimos 10</p>
-                          <p className="mt-1 text-base font-semibold text-zinc-100">
-                            {team.stats.last10Record.wins}-{team.stats.last10Record.losses} ({team.stats.streak.label})
-                          </p>
-                        </div>
-                        <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-400">Placar dos ultimos 10</p>
-                          {team.stats.last10Games?.length ? (
-                            <div className="mt-2 space-y-1">
-                              {team.stats.last10Games.map((game, index) => (
-                                <p key={`${team.key}-g${index}`} className="rounded border border-zinc-800 bg-zinc-950/80 px-2 py-1 text-[10px] text-zinc-200 sm:text-[11px]">
-                                  {formatRecentGame(game)}
-                                </p>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-1 text-[11px] text-zinc-500">Sem jogos suficientes para exibir os ultimos 10 placares.</p>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-zinc-500">
-                        Estatisticas da temporada ainda nao disponiveis para este time.
-                      </p>
-                    )}
                   </div>
-                ))}
-              </div>
-            </article>
-          );
-        })}
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {[
+                      {
+                        key: "home",
+                        teamName: match.homeTeam,
+                        logoUrl: match.homeTeamLogo || getNbaTeamIdentity(match.homeTeam).logoUrl,
+                        odd: match.odds.moneyline.home,
+                        stats: homeStats,
+                      },
+                      {
+                        key: "away",
+                        teamName: match.awayTeam,
+                        logoUrl: match.awayTeamLogo || getNbaTeamIdentity(match.awayTeam).logoUrl,
+                        odd: match.odds.moneyline.away,
+                        stats: awayStats,
+                      },
+                    ].map((team) => (
+                      <div key={team.key} className="rounded-lg border border-zinc-700 bg-zinc-950/80 p-4">
+                        <div className="flex items-start gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={team.logoUrl}
+                            alt={`${team.teamName} logo`}
+                            className="h-10 w-10 rounded-md bg-zinc-900 object-contain"
+                          />
+                          <div className="min-w-0">
+                            <p className="break-words text-base font-bold text-white sm:text-lg">{team.teamName}</p>
+                            <p className="text-xs text-zinc-400 uppercase tracking-wide">
+                              Moneyline: <span className="font-mono text-zinc-200">{displayOdd(team.odd)}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {team.stats ? (
+                          <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Classificacao atual</p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">#{team.stats.rank.overall}</p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Winrate</p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">{formatPct(team.stats.winRate)}</p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Media pontos ofensivos</p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsFor.toFixed(1)}</p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Media pontos tomados</p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsAgainst.toFixed(1)}</p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Record</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.record.wins}-{team.stats.record.losses}</p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Descanso</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{formatRest(team.stats.restDays)}</p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Casa</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.homeRecord.wins}-{team.stats.homeRecord.losses}</p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Fora</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.awayRecord.wins}-{team.stats.awayRecord.losses}</p>
+                            </div>
+                            <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Ultimos 10</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">
+                                {team.stats.last10Record.wins}-{team.stats.last10Record.losses} ({team.stats.streak.label})
+                              </p>
+                            </div>
+                            <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-400">Placar dos ultimos 10</p>
+                              {team.stats.last10Games?.length ? (
+                                <div className="mt-2 space-y-1">
+                                  {team.stats.last10Games.map((game, index) => (
+                                    <p key={`${team.key}-g${index}`} className="rounded border border-zinc-800 bg-zinc-950/80 px-2 py-1 text-[10px] text-zinc-200 sm:text-[11px]">
+                                      {formatRecentGame(game)}
+                                    </p>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="mt-1 text-[11px] text-zinc-500">Sem jogos suficientes para exibir os ultimos 10 placares.</p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-xs text-zinc-500">
+                            Estatisticas da temporada ainda nao disponiveis para este time.
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        ))}
       </div>
     </div>
   );
