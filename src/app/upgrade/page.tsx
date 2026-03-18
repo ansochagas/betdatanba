@@ -13,7 +13,7 @@ const plans = [
   {
     id: "nba_monthly",
     name: "NBA Mensal",
-    priceDisplay: "R$ 39,90/mes",
+    priceDisplay: "R$ 49,90/mes",
     description: "Acesso completo NBA com cobranca mensal",
     priceId:
       process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_MONTHLY ||
@@ -27,7 +27,7 @@ const plans = [
   {
     id: "nba_quarterly",
     name: "NBA Trimestral",
-    priceDisplay: "R$ 79,90 / 3 meses",
+    priceDisplay: "R$ 99,90 / 3 meses",
     description: "Melhor custo trimestral para NBA",
     priceId:
       process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_QUARTERLY ||
@@ -41,7 +41,7 @@ const plans = [
   {
     id: "nba_semestral",
     name: "NBA Semestral",
-    priceDisplay: "R$ 139,90 / 6 meses",
+    priceDisplay: "R$ 189,90 / 6 meses",
     description: "Economia maxima no semestre NBA",
     priceId:
       process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_SEMESTRAL ||

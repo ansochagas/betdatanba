@@ -66,6 +66,7 @@ Rotas para validar apos o deploy:
 Mercado Pago no piloto:
 - `back_urls` usam `APP_URL`
 - `notification_url` usa `APP_URL/api/webhooks/billing`
+- `MERCADOPAGO_WEBHOOK_SECRET` deve estar configurado antes de validar webhook real
 - se precisar, sobrescreva com `MERCADOPAGO_WEBHOOK_URL`
 
 ## Fase 2: Ambiente profissional

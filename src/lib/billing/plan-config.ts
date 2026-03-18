@@ -34,21 +34,21 @@ const PLAN_PRICE_MAP: Record<string, Omit<BillingPlanConfig, "periodDays">> = {
     planId: "nba_monthly",
     title: "NBA Mensal",
     description: "Acesso completo NBA por 30 dias",
-    unitPrice: 39.9,
+    unitPrice: 49.9,
     currencyId: "BRL",
   },
   nba_quarterly: {
     planId: "nba_quarterly",
     title: "NBA Trimestral",
     description: "Acesso completo NBA por 90 dias",
-    unitPrice: 79.9,
+    unitPrice: 99.9,
     currencyId: "BRL",
   },
   nba_semestral: {
     planId: "nba_semestral",
     title: "NBA Semestral",
     description: "Acesso completo NBA por 180 dias",
-    unitPrice: 139.9,
+    unitPrice: 189.9,
     currencyId: "BRL",
   },
   combo_manual: {
@@ -77,4 +77,12 @@ export const getBillingPlanConfig = (
     ...config,
     periodDays: getPlanDurationDays(config.planId),
   };
+};
+
+export const getMonthlyEquivalentRevenue = (
+  planId: string | null | undefined
+): number => {
+  const config = getBillingPlanConfig(planId);
+  if (!config.unitPrice || config.periodDays <= 0) return 0;
+  return (config.unitPrice / config.periodDays) * 30;
 };

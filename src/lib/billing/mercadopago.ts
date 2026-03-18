@@ -37,6 +37,14 @@ const getAccessToken = (): string => {
   return token;
 };
 
+const getWebhookSecret = (): string => {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  if (!secret) {
+    throw new Error("MERCADOPAGO_WEBHOOK_SECRET nao configurado");
+  }
+  return secret;
+};
+
 const getNotificationUrl = (): string => {
   const custom = process.env.MERCADOPAGO_WEBHOOK_URL;
   if (custom) return custom;
@@ -161,10 +169,11 @@ export const validateMercadoPagoWebhookSignature = (params: {
   xRequestId: string | null;
   dataId: string | null;
 }): boolean => {
-  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
-  if (!secret) {
-    // Sem segredo configurado, não validamos assinatura.
-    return true;
+  let secret: string;
+  try {
+    secret = getWebhookSecret();
+  } catch {
+    return false;
   }
 
   const { ts, v1 } = parseSignatureHeader(params.xSignature);

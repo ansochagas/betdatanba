@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { getMonthlyEquivalentRevenue } from "@/lib/billing/plan-config";
 
 export const dynamic = "force-dynamic";
 
@@ -81,8 +82,10 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Calcular receita mensal (simplificado - assumindo R$ 29.90 por assinatura ativa)
-    const monthlyRevenue = activeSubscriptions * 29.9;
+    // MRR estimado com base no plano ativo normalizado para 30 dias.
+    const monthlyRevenue = subscriptions.reduce((total, subscription) => {
+      return total + getMonthlyEquivalentRevenue(subscription.planId);
+    }, 0);
 
     const stats = {
       totalUsers,
