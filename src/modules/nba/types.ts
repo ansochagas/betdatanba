@@ -1,4 +1,4 @@
-export type NbaDataSource = "api-basketball" | "betsapi" | "mock";
+export type NbaDataSource = "feed" | "mock";
 
 export type NbaMoneylineOdds = {
   home: number;
@@ -129,11 +129,11 @@ export type NbaConfidenceLevel = "baixa" | "media" | "alta";
 
 export type NbaOpportunitySignalKey =
   | "recent_form"
-  | "home_away_split"
-  | "rest"
-  | "odds_movement"
-  | "efficiency_matchup"
-  | "market_edge";
+  | "team_role"
+  | "consistency"
+  | "game_environment"
+  | "matchup_context"
+  | "rest";
 
 export type NbaOpportunitySignalDirection = "a_favor" | "neutro" | "contra";
 
@@ -145,32 +145,65 @@ export type NbaOpportunitySignal = {
   direction: NbaOpportunitySignalDirection;
 };
 
+export type NbaGoldListMarket = "points" | "rebounds" | "assists";
+
+export type NbaGoldListTrend = "subindo" | "estavel" | "caindo";
+
+export type NbaGoldListMatchupRating =
+  | "muito_favoravel"
+  | "favoravel"
+  | "neutro"
+  | "dificil";
+
 export type NbaGoldListPick = {
   rank: number;
+  market: NbaGoldListMarket;
   score: number;
   confidence: number;
   confidenceLevel: NbaConfidenceLevel;
   confidenceReason: string;
-  match: NbaMatch;
-  recommendation: {
-    market: "moneyline";
-    side: "home" | "away";
+  player: {
+    id: string;
+    name: string;
     team: string;
-    odds: number;
-    impliedProbability: number;
-    modelProbability: number;
-    edge: number;
+    opponent: string;
+    side: "home" | "away";
+    imageHint?: string;
+  };
+  match: NbaMatch;
+  recentValues: number[];
+  recentAverage: number;
+  lastThreeAverage: number;
+  projection: number;
+  trend: NbaGoldListTrend;
+  matchupRating: NbaGoldListMatchupRating;
+  teamContext: {
+    restDays: number | null;
+    teamRank: number | null;
+    opponentDefenseRank: number | null;
+    isHome: boolean;
   };
   summary: string;
   supportSignals: NbaOpportunitySignal[];
 };
 
+export type NbaGoldListSection = {
+  market: NbaGoldListMarket;
+  title: string;
+  subtitle: string;
+  picks: NbaGoldListPick[];
+};
+
 export type NbaGoldListResponse = {
   date: string;
-  picks: NbaGoldListPick[];
+  heroTitle: string;
+  heroSubtitle: string;
+  topPicks: NbaGoldListPick[];
+  sections: NbaGoldListSection[];
   metadata: {
     totalMatches: number;
     analyzedMatches: number;
+    totalPlayers: number;
     opportunitiesCount: number;
     lastUpdate: string;
     dataSource: string;

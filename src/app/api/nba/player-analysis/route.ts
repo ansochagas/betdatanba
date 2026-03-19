@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: result,
-      source: provider,
+      source: "feed",
       cached: false,
       responseTimeMs: Date.now() - startedAt,
     });
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           ...backup,
           warnings: [...backup.warnings, warning],
         },
-        source: "cache-fallback",
+        source: "fallback",
         cached: true,
         fallback: true,
         responseTimeMs: Date.now() - startedAt,

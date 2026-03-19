@@ -13,6 +13,7 @@ import {
   Settings,
   Lock,
 } from "lucide-react";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 export default function MinhaContaPage() {
   const { data: session } = useSession();
@@ -255,8 +256,8 @@ Depois de enviar, aguarde a confirmação no bot.`;
       <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-4">
-            <Link href="/dashboard" className="text-2xl font-bold text-white">
-                BETDATA
+            <Link href="/dashboard" className="text-white">
+              <BrandLogo size="md" />
             </Link>
             <span className="text-zinc-400">•</span>
             <span className="text-zinc-400">Minha Conta</span>

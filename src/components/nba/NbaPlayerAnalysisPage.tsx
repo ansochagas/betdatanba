@@ -165,11 +165,6 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                   <span className="rounded-full border border-zinc-700 bg-zinc-900/70 px-3 py-1">
                     {formatBrtDate(data?.scheduledAt || scheduledAt)}
                   </span>
-                  {data?.source && (
-                    <span className="rounded-full border border-zinc-700 bg-zinc-900/70 px-3 py-1 uppercase">
-                      Fonte: {data.source}
-                    </span>
-                  )}
                 </div>
               </div>
 

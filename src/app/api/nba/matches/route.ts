@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: matches,
-      source: provider,
+      source: "feed",
       warnings,
       cached: false,
       responseTimeMs: Date.now() - startedAt,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: backup,
-        source: "cache-fallback",
+        source: "fallback",
         warnings: [warning],
         fallback: true,
         cached: true,
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: mockMatches,
-      source: "mock-fallback",
+      source: "fallback",
       warnings: [warning],
       fallback: true,
       cached: false,

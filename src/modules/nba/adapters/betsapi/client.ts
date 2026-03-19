@@ -601,7 +601,7 @@ const normalizeMatch = (event: BetsApiUpcomingEvent): NbaMatch | null => {
     odds: {
       moneyline: parseMoneyline(event),
     },
-    source: "betsapi",
+    source: "feed",
   };
 };
 
@@ -1285,9 +1285,9 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
     awayTeam,
     league,
     scheduledAt: options.scheduledAt ?? null,
-    source: "betsapi",
+    source: "feed",
     generatedAt: new Date().toISOString(),
-    note: "Medias dos ultimos 5 jogos retornadas pela BetsAPI em payload bruto de pre-jogo.",
+    note: "Medias recentes processadas a partir da leitura pre-jogo disponivel.",
     warnings,
     teams: [
       {
@@ -1305,23 +1305,23 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
 };
 
 export const getBetsApiFriendlyMessage = (error: unknown): string => {
-  const fallback = "Nao foi possivel buscar os jogos da NBA na BetsAPI.";
+  const fallback = "Nao foi possivel carregar os dados da NBA agora. Exibindo fallback seguro.";
   if (!(error instanceof BetsApiError)) return fallback;
 
   if (error.kind === "quota") {
-    return "Limite de requisicoes da BetsAPI atingido. Exibindo fallback seguro.";
+    return "Alguns dados nao puderam ser carregados agora. Exibindo fallback seguro.";
   }
 
   if (error.kind === "plan") {
-    return "Seu plano da BetsAPI nao cobre este recurso. Exibindo fallback seguro.";
+    return "Alguns dados nao estao disponiveis no momento. Exibindo fallback seguro.";
   }
 
   if (error.kind === "auth") {
-    return "Token da BetsAPI invalido ou sem permissao. Exibindo fallback seguro.";
+    return "Nao foi possivel validar a consulta agora. Exibindo fallback seguro.";
   }
 
   if (error.kind === "config") {
-    return "Configuracao da BetsAPI ausente. Exibindo fallback seguro.";
+    return "Configuracao temporariamente indisponivel. Exibindo fallback seguro.";
   }
 
   return fallback;

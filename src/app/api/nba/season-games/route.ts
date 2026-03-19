@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
             ...game,
             hasRawPayload: Boolean(raw),
           })),
-      source: "betsapi",
+      source: "feed",
       cached: false,
       responseTimeMs: Date.now() - startedAt,
       metadata: {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: getBetsApiFriendlyMessage(error),
-        source: "betsapi",
+        source: "fallback",
         responseTimeMs: Date.now() - startedAt,
       },
       { status: 502 }

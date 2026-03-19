@@ -39,9 +39,9 @@ const steps: {
   },
   {
     id: "gold",
-    title: "Explore a Lista de Ouro",
-    description: "Veja os jogos com melhores oportunidades.",
-    cta: { label: "Ir para Lista de Ouro", href: "/dashboard?tool=gold-list" },
+    title: "Explore Melhores do Dia",
+    description: "Veja os nomes mais fortes para apostar hoje.",
+    cta: { label: "Ir para Melhores do Dia", href: "/dashboard?tool=gold-list" },
   },
   {
     id: "live",

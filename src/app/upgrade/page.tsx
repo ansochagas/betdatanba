@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 const billingProvider = (
   process.env.NEXT_PUBLIC_BILLING_PROVIDER || "stripe"
@@ -232,8 +233,8 @@ export default function Upgrade() {
     <div className="min-h-screen bg-black text-white">
       <div className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-          <Link href="/" className="text-2xl font-bold text-white">
-            BETDATA
+          <Link href="/" className="text-white">
+            <BrandLogo size="md" />
           </Link>
           <Link href="/dashboard" className="text-zinc-400 hover:text-white">
             {"<- Voltar ao Dashboard"}

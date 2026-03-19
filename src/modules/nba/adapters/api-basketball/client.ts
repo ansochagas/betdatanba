@@ -217,19 +217,19 @@ const mapGameStatus = (statusShort?: string, statusLong?: string): string => {
 };
 
 export const getApiBasketballFriendlyMessage = (error: unknown): string => {
-  const fallback = "Nao foi possivel buscar os jogos da NBA na API externa.";
+  const fallback = "Nao foi possivel carregar os dados da NBA agora. Exibindo fallback seguro.";
   if (!(error instanceof ApiBasketballError)) return fallback;
 
   if (error.kind === "quota") {
-    return "Limite de requisicoes da API atingido. Exibindo fallback seguro.";
+    return "Alguns dados nao puderam ser carregados agora. Exibindo fallback seguro.";
   }
 
   if (error.kind === "plan") {
-    return "Seu plano gratuito da API nao cobre a temporada atual da NBA. Exibindo fallback seguro.";
+    return "Alguns dados nao estao disponiveis no momento. Exibindo fallback seguro.";
   }
 
   if (error.kind === "config") {
-    return "Configuracao da API de basquete ausente. Exibindo fallback seguro.";
+    return "Configuracao temporariamente indisponivel. Exibindo fallback seguro.";
   }
 
   return fallback;
@@ -303,7 +303,7 @@ export const fetchNbaMatchesFromApiBasketball = async (
         odds: {
           moneyline: oddsByGameId.get(id) || DEFAULT_MONEYLINE,
         },
-        source: "api-basketball",
+        source: "feed",
       } as NbaMatch;
     })
     .filter((match): match is NbaMatch => Boolean(match))

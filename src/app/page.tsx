@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 export default function Home() {
   const { data: session } = useSession();
@@ -12,8 +13,8 @@ export default function Home() {
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-white">
-            BETDATA
+          <Link href="/" className="text-white">
+            <BrandLogo size="md" />
           </Link>
           <div className="flex items-center gap-4">
             {session ? (
@@ -59,7 +60,7 @@ export default function Home() {
             Eleve seu Jogo no Basquete.
           </h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-            A BETDATA transforma dados da NBA em vantagem competitiva.
+            A BETDATA NBA transforma dados da NBA em vantagem competitiva.
             Antecipe resultados, estude times e domine o pr?-jogo.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

@@ -10,7 +10,7 @@ export const featureFlags = {
   externalTestMode: toBool(process.env.NEXT_PUBLIC_EXTERNAL_TEST_MODE),
 };
 
-const externallyBlockedTools = new Set(["gold-list", "reports"]);
+const externallyBlockedTools = new Set(["reports"]);
 
 export const isOnboardingEnabled = () => featureFlags.onboarding;
 export const isExternalTestModeEnabled = () => featureFlags.externalTestMode;

@@ -1,47 +1,165 @@
 import { getNbaTeamIdentity } from "@/modules/nba/logos";
 import {
+  NbaConfidenceLevel,
+  NbaGoldListMarket,
+  NbaGoldListMatchupRating,
   NbaGoldListPick,
   NbaGoldListResponse,
+  NbaGoldListSection,
+  NbaGoldListTrend,
   NbaMatch,
   NbaOpportunitySignal,
+  NbaPlayerAnalysisItem,
+  NbaPlayerAnalysisResponse,
   NbaTeamSeasonStats,
 } from "@/modules/nba/types";
 
 type BuildNbaGoldListOptions = {
   dataSource: string;
   warnings?: string[];
-  maxPicks?: number;
+  maxPicksPerMarket?: number;
+  topPicksCount?: number;
   teamStats?: NbaTeamSeasonStats[];
+  playerAnalyses?: Array<{
+    match: NbaMatch;
+    analysis: NbaPlayerAnalysisResponse;
+  }>;
 };
 
 type Side = "home" | "away";
 
-type TeamContext = {
-  side: Side;
-  team: string;
-  opponent: string;
-  odd: number;
-  marketProbability: number;
-  gamesPlayed: number;
-  last10WinRate: number;
-  splitWinRate: number;
-  restDays: number;
-  pointDifferential: number;
+type LeagueContext = {
   averagePointsFor: number;
   averagePointsAgainst: number;
-  hasRealStats: boolean;
+  averageTotalPoints: number;
 };
 
-const MAX_PICKS_DEFAULT = 5;
-const SCORE_THRESHOLD = 56;
-
-const clamp = (value: number, min: number, max: number): number => {
-  return Math.min(max, Math.max(min, value));
+type TeamContext = {
+  team: string;
+  side: Side;
+  restDays: number | null;
+  overallRank: number | null;
+  defenseRank: number | null;
+  averagePointsFor: number | null;
+  averagePointsAgainst: number | null;
+  averageTotalPoints: number | null;
+  pointDifferential: number | null;
 };
 
-const normalizeTeam = (value: string): string => {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+type RawCandidate = {
+  key: string;
+  market: NbaGoldListMarket;
+  playerId: string;
+  playerName: string;
+  teamName: string;
+  opponentName: string;
+  side: Side;
+  imageHint?: string;
+  match: NbaMatch;
+  recentValues: number[];
+  recentAverage: number;
+  lastThreeAverage: number;
+  trendDelta: number;
+  trendLabel: NbaGoldListTrend;
+  teamRoleScore: number;
+  teamRoleRank: number;
+  teamPlayerCount: number;
+  consistencyScore: number;
+  matchupScore: number;
+  matchupRating: NbaGoldListMatchupRating;
+  gameEnvironmentScore: number;
+  projectedGameTotal: number;
+  restDays: number | null;
+  restScore: number;
+  isHome: boolean;
+  homeScore: number;
+  projection: number;
+  ownTeamContext: TeamContext;
+  opponentTeamContext: TeamContext;
 };
+
+type MarketRule = {
+  title: string;
+  subtitle: string;
+  label: string;
+  minAverage: number;
+  weights: {
+    recent: number;
+    trend: number;
+    role: number;
+    consistency: number;
+    matchup: number;
+    rest: number;
+    home: number;
+  };
+};
+
+const MAX_PICKS_PER_MARKET = 5;
+const TOP_PICKS_COUNT = 6;
+const TODAY_HERO_TITLE = "Melhores do Dia";
+const TODAY_HERO_SUBTITLE =
+  "Leitura objetiva dos jogos de hoje para apontar os nomes mais fortes em pontos, rebotes e assistencias.";
+
+const MARKET_RULES: Record<NbaGoldListMarket, MarketRule> = {
+  points: {
+    title: "Melhor Media de Pontos do Dia",
+    subtitle: "Quem chega com melhor contexto ofensivo para o mercado de pontos.",
+    label: "pontos",
+    minAverage: 12,
+    weights: {
+      recent: 0.34,
+      trend: 0.16,
+      role: 0.18,
+      consistency: 0.14,
+      matchup: 0.1,
+      rest: 0.05,
+      home: 0.03,
+    },
+  },
+  rebounds: {
+    title: "Melhor Media de Rebotes do Dia",
+    subtitle: "Nomes com volume recente e ambiente forte para rebotes hoje.",
+    label: "rebotes",
+    minAverage: 5,
+    weights: {
+      recent: 0.3,
+      trend: 0.14,
+      role: 0.22,
+      consistency: 0.16,
+      matchup: 0.09,
+      rest: 0.06,
+      home: 0.03,
+    },
+  },
+  assists: {
+    title: "Melhor Media de Assistencias do Dia",
+    subtitle: "Jogadores com melhor leitura de criacao para os jogos de hoje.",
+    label: "assistencias",
+    minAverage: 4,
+    weights: {
+      recent: 0.31,
+      trend: 0.17,
+      role: 0.22,
+      consistency: 0.13,
+      matchup: 0.1,
+      rest: 0.05,
+      home: 0.02,
+    },
+  },
+};
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
+const average = (values: number[]): number => {
+  if (!values.length) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
+const roundToOne = (value: number): number => Number(value.toFixed(1));
+
+const normalizeTeam = (value: string): string =>
+  value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const formatDateInBrt = (date: Date): string => {
   return new Intl.DateTimeFormat("en-CA", {
@@ -52,34 +170,52 @@ const formatDateInBrt = (date: Date): string => {
   }).format(date);
 };
 
-const toSignalDirection = (value: number): NbaOpportunitySignal["direction"] => {
-  if (value > 0.04) return "a_favor";
-  if (value < -0.04) return "contra";
+const computeStdDev = (values: number[]): number => {
+  if (values.length <= 1) return 0;
+  const mean = average(values);
+  const variance =
+    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+};
+
+const toTrendLabel = (
+  market: NbaGoldListMarket,
+  delta: number
+): NbaGoldListTrend => {
+  const threshold = market === "points" ? 1.4 : 0.9;
+  if (delta >= threshold) return "subindo";
+  if (delta <= -threshold) return "caindo";
+  return "estavel";
+};
+
+const toMatchupRating = (value: number): NbaGoldListMatchupRating => {
+  if (value >= 0.45) return "muito_favoravel";
+  if (value >= 0.15) return "favoravel";
+  if (value <= -0.2) return "dificil";
   return "neutro";
 };
 
-const hashString = (value: string): number => {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash +=
-      (hash << 1) +
-      (hash << 4) +
-      (hash << 7) +
-      (hash << 8) +
-      (hash << 24);
-  }
-
-  return Math.abs(hash >>> 0);
+const getConfidenceLevel = (value: number): NbaConfidenceLevel => {
+  if (value >= 0.79) return "alta";
+  if (value >= 0.63) return "media";
+  return "baixa";
 };
 
-const buildStatsIndex = (teamStats: NbaTeamSeasonStats[]): Map<string, NbaTeamSeasonStats> => {
+const toSignalDirection = (value: number): NbaOpportunitySignal["direction"] => {
+  if (value > 0.12) return "a_favor";
+  if (value < -0.12) return "contra";
+  return "neutro";
+};
+
+const buildStatsIndex = (
+  teamStats: NbaTeamSeasonStats[]
+): Map<string, NbaTeamSeasonStats> => {
   const index = new Map<string, NbaTeamSeasonStats>();
 
   for (const team of teamStats) {
-    const canonical = getNbaTeamIdentity(team.teamName);
+    const identity = getNbaTeamIdentity(team.teamName);
     index.set(normalizeTeam(team.teamName), team);
-    index.set(normalizeTeam(canonical.canonicalName), team);
+    index.set(normalizeTeam(identity.canonicalName), team);
   }
 
   return index;
@@ -93,8 +229,8 @@ const resolveTeamStats = (
   if (direct) return direct;
 
   const identity = getNbaTeamIdentity(teamName);
-  const byCanonical = index.get(normalizeTeam(identity.canonicalName));
-  if (byCanonical) return byCanonical;
+  const canonical = index.get(normalizeTeam(identity.canonicalName));
+  if (canonical) return canonical;
 
   const target = normalizeTeam(teamName);
   for (const [key, value] of index.entries()) {
@@ -106,353 +242,565 @@ const resolveTeamStats = (
   return null;
 };
 
-const buildFallbackContext = (match: NbaMatch, side: Side): TeamContext => {
-  const seed = hashString(`${match.id}:${side}`);
-  const odd = side === "home" ? match.odds.moneyline.home : match.odds.moneyline.away;
-  const safeOdd = Number.isFinite(odd) && odd > 1.01 ? odd : 1.91;
-
-  const gamesPlayed = 35 + (seed % 25);
-  const last10WinRate = 0.35 + ((seed >>> 3) % 40) / 100;
-  const splitWinRate = 0.35 + ((seed >>> 6) % 45) / 100;
-  const restDays = (seed >>> 8) % 4;
-  const pointDifferential = -6 + ((seed >>> 10) % 120) / 10;
-  const averagePointsFor = 102 + ((seed >>> 12) % 250) / 10;
-  const averagePointsAgainst = averagePointsFor - pointDifferential;
+const buildLeagueContext = (teamStats: NbaTeamSeasonStats[]): LeagueContext => {
+  if (!teamStats.length) {
+    return {
+      averagePointsFor: 112,
+      averagePointsAgainst: 112,
+      averageTotalPoints: 224,
+    };
+  }
 
   return {
-    side,
-    team: side === "home" ? match.homeTeam : match.awayTeam,
-    opponent: side === "home" ? match.awayTeam : match.homeTeam,
-    odd: Number(safeOdd.toFixed(2)),
-    marketProbability: 0.5,
-    gamesPlayed,
-    last10WinRate: Number(last10WinRate.toFixed(3)),
-    splitWinRate: Number(splitWinRate.toFixed(3)),
-    restDays,
-    pointDifferential: Number(pointDifferential.toFixed(1)),
-    averagePointsFor: Number(averagePointsFor.toFixed(1)),
-    averagePointsAgainst: Number(averagePointsAgainst.toFixed(1)),
-    hasRealStats: false,
+    averagePointsFor: average(teamStats.map((team) => team.averagePointsFor)),
+    averagePointsAgainst: average(teamStats.map((team) => team.averagePointsAgainst)),
+    averageTotalPoints: average(teamStats.map((team) => team.averageTotalPoints)),
   };
 };
 
 const buildTeamContext = (
-  match: NbaMatch,
+  teamName: string,
   side: Side,
   statsIndex: Map<string, NbaTeamSeasonStats>
 ): TeamContext => {
-  const teamName = side === "home" ? match.homeTeam : match.awayTeam;
-  const odd = side === "home" ? match.odds.moneyline.home : match.odds.moneyline.away;
-  const safeOdd = Number.isFinite(odd) && odd > 1.01 ? odd : 1.91;
-  const safeMarketProbability = 1 / safeOdd;
   const stats = resolveTeamStats(teamName, statsIndex);
 
-  if (!stats) {
-    return {
-      ...buildFallbackContext(match, side),
-      odd: Number(safeOdd.toFixed(2)),
-      marketProbability: safeMarketProbability,
-    };
-  }
-
-  const last10Games = stats.last10Record.wins + stats.last10Record.losses;
-  const last10WinRate =
-    last10Games > 0 ? stats.last10Record.wins / last10Games : stats.winRate;
-  const splitRecord = side === "home" ? stats.homeRecord : stats.awayRecord;
-  const splitGames = splitRecord.wins + splitRecord.losses;
-  const splitWinRate = splitGames > 0 ? splitRecord.wins / splitGames : stats.winRate;
-
   return {
-    side,
     team: teamName,
-    opponent: side === "home" ? match.awayTeam : match.homeTeam,
-    odd: Number(safeOdd.toFixed(2)),
-    marketProbability: safeMarketProbability,
-    gamesPlayed: stats.gamesPlayed,
-    last10WinRate: Number(last10WinRate.toFixed(3)),
-    splitWinRate: Number(splitWinRate.toFixed(3)),
-    restDays: stats.restDays ?? 1,
-    pointDifferential: Number(stats.pointDifferential.toFixed(1)),
-    averagePointsFor: Number(stats.averagePointsFor.toFixed(1)),
-    averagePointsAgainst: Number(stats.averagePointsAgainst.toFixed(1)),
-    hasRealStats: true,
+    side,
+    restDays: stats?.restDays ?? null,
+    overallRank: stats?.rank.overall ?? null,
+    defenseRank: stats?.rank.defense ?? null,
+    averagePointsFor: stats?.averagePointsFor ?? null,
+    averagePointsAgainst: stats?.averagePointsAgainst ?? null,
+    averageTotalPoints: stats?.averageTotalPoints ?? null,
+    pointDifferential: stats?.pointDifferential ?? null,
   };
 };
 
-const buildSignals = (
-  team: TeamContext,
+const inferSide = (teamName: string, match: NbaMatch): Side => {
+  const target = normalizeTeam(teamName);
+  const homeKeys = [
+    normalizeTeam(match.homeTeam),
+    normalizeTeam(getNbaTeamIdentity(match.homeTeam).canonicalName),
+  ];
+  const awayKeys = [
+    normalizeTeam(match.awayTeam),
+    normalizeTeam(getNbaTeamIdentity(match.awayTeam).canonicalName),
+  ];
+
+  if (homeKeys.some((key) => key === target || key.includes(target) || target.includes(key))) {
+    return "home";
+  }
+
+  if (awayKeys.some((key) => key === target || key.includes(target) || target.includes(key))) {
+    return "away";
+  }
+
+  return "away";
+};
+
+const toRestScore = (restDays: number | null): number => {
+  if (restDays === null || restDays === undefined) return 0.5;
+  return clamp(0.35 + restDays * 0.18, 0.35, 1);
+};
+
+const buildGameEnvironmentScore = (
+  market: NbaGoldListMarket,
+  projectedTotal: number,
+  pointDifferentialGap: number,
+  league: LeagueContext
+): number => {
+  const totalScore = clamp(
+    (projectedTotal - league.averageTotalPoints) / 22,
+    -1,
+    1
+  );
+  const closeGameScore = clamp(1 - Math.abs(pointDifferentialGap) / 12, 0, 1);
+  const closeGameNormalized = closeGameScore * 2 - 1;
+
+  if (market === "rebounds") {
+    return totalScore * 0.65 + closeGameNormalized * 0.35;
+  }
+
+  if (market === "assists") {
+    return totalScore * 0.55 + closeGameNormalized * 0.2;
+  }
+
+  return totalScore * 0.6 + closeGameNormalized * 0.15;
+};
+
+const buildMatchupScore = (
+  market: NbaGoldListMarket,
+  ownTeam: TeamContext,
   opponent: TeamContext,
-  normForm: number,
-  normSplit: number,
-  normRest: number,
-  normEfficiency: number,
-  normMarketEdge: number
-): NbaOpportunitySignal[] => {
-  return [
+  projectedTotal: number,
+  pointDifferentialGap: number,
+  league: LeagueContext
+): number => {
+  const offenseScore = clamp(
+    ((ownTeam.averagePointsFor ?? league.averagePointsFor) - league.averagePointsFor) / 12,
+    -1,
+    1
+  );
+  const defenseAllowanceScore = clamp(
+    ((opponent.averagePointsAgainst ?? league.averagePointsAgainst) -
+      league.averagePointsAgainst) /
+      12,
+    -1,
+    1
+  );
+  const defenseRankScore = opponent.defenseRank
+    ? clamp((opponent.defenseRank - 15) / 15, -1, 1)
+    : 0;
+  const environmentScore = buildGameEnvironmentScore(
+    market,
+    projectedTotal,
+    pointDifferentialGap,
+    league
+  );
+
+  if (market === "points") {
+    return (
+      defenseAllowanceScore * 0.42 +
+      defenseRankScore * 0.23 +
+      offenseScore * 0.2 +
+      environmentScore * 0.15
+    );
+  }
+
+  if (market === "assists") {
+    return (
+      offenseScore * 0.35 +
+      defenseAllowanceScore * 0.28 +
+      defenseRankScore * 0.15 +
+      environmentScore * 0.22
+    );
+  }
+
+  return environmentScore * 0.7 + defenseRankScore * 0.15 + offenseScore * 0.15;
+};
+
+const buildProjection = (
+  market: NbaGoldListMarket,
+  recentAverage: number,
+  trendDelta: number,
+  matchupScore: number,
+  isHome: boolean,
+  restScore: number
+): number => {
+  const homeBoost = isHome ? (market === "points" ? 0.7 : 0.35) : 0;
+  const restBoost = (restScore - 0.5) * (market === "points" ? 1.4 : 1);
+
+  if (market === "points") {
+    return recentAverage + trendDelta * 0.7 + matchupScore * 3.4 + homeBoost + restBoost;
+  }
+
+  if (market === "assists") {
+    return recentAverage + trendDelta * 0.65 + matchupScore * 2.1 + homeBoost + restBoost;
+  }
+
+  return recentAverage + trendDelta * 0.55 + matchupScore * 1.6 + homeBoost + restBoost;
+};
+
+const createTeamRoleScore = (
+  players: NbaPlayerAnalysisItem[],
+  playerId: string,
+  market: NbaGoldListMarket
+): { score: number; rank: number; total: number } => {
+  const sorted = [...players]
+    .filter((item) => (item[market].average ?? 0) > 0)
+    .sort((left, right) => (right[market].average ?? 0) - (left[market].average ?? 0));
+
+  const position = sorted.findIndex((item) => item.playerId === playerId);
+  if (position === -1) {
+    return { score: 0.4, rank: players.length, total: players.length };
+  }
+
+  if (sorted.length === 1) {
+    return { score: 1, rank: 1, total: 1 };
+  }
+
+  return {
+    score: 1 - position / (sorted.length - 1),
+    rank: position + 1,
+    total: sorted.length,
+  };
+};
+
+const buildRawCandidates = (
+  matches: NbaMatch[],
+  playerAnalyses: Array<{ match: NbaMatch; analysis: NbaPlayerAnalysisResponse }>,
+  teamStats: NbaTeamSeasonStats[]
+): RawCandidate[] => {
+  const statsIndex = buildStatsIndex(teamStats);
+  const league = buildLeagueContext(teamStats);
+  const candidates: RawCandidate[] = [];
+
+  for (const { match, analysis } of playerAnalyses) {
+    const homeContext = buildTeamContext(match.homeTeam, "home", statsIndex);
+    const awayContext = buildTeamContext(match.awayTeam, "away", statsIndex);
+    const projectedGameTotal =
+      average(
+        [homeContext.averageTotalPoints, awayContext.averageTotalPoints].filter(
+          (value): value is number => typeof value === "number"
+        )
+      ) || league.averageTotalPoints;
+    const pointDifferentialGap =
+      (homeContext.pointDifferential ?? 0) - (awayContext.pointDifferential ?? 0);
+
+    for (const team of analysis.teams) {
+      for (const player of team.players) {
+        const side = inferSide(player.teamName, match);
+        const ownContext = side === "home" ? homeContext : awayContext;
+        const opponentContext = side === "home" ? awayContext : homeContext;
+        const isHome = side === "home";
+        const restScore = toRestScore(ownContext.restDays);
+        const homeScore = isHome ? 1 : 0.45;
+
+        (Object.keys(MARKET_RULES) as NbaGoldListMarket[]).forEach((market) => {
+          const values = player[market].values.filter((value) => Number.isFinite(value));
+          if (values.length < 3) return;
+
+          const recentAverage = player[market].average ?? average(values);
+          if (recentAverage < MARKET_RULES[market].minAverage) return;
+
+          const lastThreeAverage = average(values.slice(0, 3));
+          const trendDelta = lastThreeAverage - recentAverage;
+          const trendLabel = toTrendLabel(market, trendDelta);
+          const consistencyScore = clamp(
+            1 - computeStdDev(values) / Math.max(recentAverage, 1),
+            0,
+            1
+          );
+          const teamRole = createTeamRoleScore(team.players, player.playerId, market);
+          if (teamRole.rank > Math.min(teamRole.total, 5)) return;
+
+          const matchupScore = buildMatchupScore(
+            market,
+            ownContext,
+            opponentContext,
+            projectedGameTotal,
+            pointDifferentialGap,
+            league
+          );
+          const projection = buildProjection(
+            market,
+            recentAverage,
+            trendDelta,
+            matchupScore,
+            isHome,
+            restScore
+          );
+
+          candidates.push({
+            key: `${match.id}:${player.playerId}:${market}`,
+            market,
+            playerId: player.playerId,
+            playerName: player.playerName,
+            teamName: player.teamName,
+            opponentName: opponentContext.team,
+            side,
+            imageHint: player.imageHint,
+            match,
+            recentValues: values,
+            recentAverage,
+            lastThreeAverage,
+            trendDelta,
+            trendLabel,
+            teamRoleScore: teamRole.score,
+            teamRoleRank: teamRole.rank,
+            teamPlayerCount: teamRole.total,
+            consistencyScore,
+            matchupScore,
+            matchupRating: toMatchupRating(matchupScore),
+            gameEnvironmentScore: buildGameEnvironmentScore(
+              market,
+              projectedGameTotal,
+              pointDifferentialGap,
+              league
+            ),
+            projectedGameTotal,
+            restDays: ownContext.restDays,
+            restScore,
+            isHome,
+            homeScore,
+            projection: Math.max(0, projection),
+            ownTeamContext: ownContext,
+            opponentTeamContext: opponentContext,
+          });
+        });
+      }
+    }
+  }
+
+  return candidates;
+};
+
+const createRangeIndex = (candidates: RawCandidate[]) => {
+  const entries = new Map<
+    NbaGoldListMarket,
+    {
+      minRecent: number;
+      maxRecent: number;
+      minTrend: number;
+      maxTrend: number;
+    }
+  >();
+
+  (Object.keys(MARKET_RULES) as NbaGoldListMarket[]).forEach((market) => {
+    const marketCandidates = candidates.filter((candidate) => candidate.market === market);
+    const recentValues = marketCandidates.map((candidate) => candidate.recentAverage);
+    const trendValues = marketCandidates.map((candidate) => candidate.trendDelta);
+
+    entries.set(market, {
+      minRecent: recentValues.length ? Math.min(...recentValues) : 0,
+      maxRecent: recentValues.length ? Math.max(...recentValues) : 1,
+      minTrend: trendValues.length ? Math.min(...trendValues) : -1,
+      maxTrend: trendValues.length ? Math.max(...trendValues) : 1,
+    });
+  });
+
+  return entries;
+};
+
+const normalizeRange = (value: number, min: number, max: number): number => {
+  if (max <= min) return 0.5;
+  return clamp((value - min) / (max - min), 0, 1);
+};
+
+const buildConfidenceReason = (pick: RawCandidate, confidenceLevel: NbaConfidenceLevel): string => {
+  if (confidenceLevel === "alta") {
+    return `${pick.playerName} chega com papel forte no time, tendencia ${pick.trendLabel} e leitura favoravel de confronto.`;
+  }
+
+  if (confidenceLevel === "media") {
+    return `${pick.playerName} tem base recente consistente e contexto util para o mercado de ${MARKET_RULES[pick.market].label}.`;
+  }
+
+  return `${pick.playerName} entra como nome de apoio para hoje, mas com leitura mais sensivel a variacao do jogo.`;
+};
+
+const buildSupportSignals = (pick: RawCandidate): NbaOpportunitySignal[] => {
+  const hitCount = pick.recentValues.filter((value) => value >= pick.recentAverage * 0.85).length;
+  const matchupLabel =
+    pick.matchupRating === "muito_favoravel"
+      ? "muito favoravel"
+      : pick.matchupRating === "favoravel"
+        ? "favoravel"
+        : pick.matchupRating === "dificil"
+          ? "mais duro"
+          : "equilibrado";
+
+  const signals: NbaOpportunitySignal[] = [
     {
       key: "recent_form",
       title: "Forma recente",
-      detail: `${team.team}: ${(team.last10WinRate * 100).toFixed(0)}% nos ultimos jogos vs ${(opponent.last10WinRate * 100).toFixed(0)}% do adversario.`,
-      impact: Number(Math.abs(normForm).toFixed(2)),
-      direction: toSignalDirection(normForm),
+      detail: `${pick.playerName} vem de ${roundToOne(pick.recentAverage)} de media nos ultimos 5 jogos e ${roundToOne(pick.lastThreeAverage)} nos ultimos 3.`,
+      impact: clamp(0.4 + Math.abs(pick.trendDelta) / 4, 0, 1),
+      direction: toSignalDirection(pick.trendDelta / 2),
     },
     {
-      key: "home_away_split",
-      title: "Split casa/fora",
-      detail: `${team.team}: ${(team.splitWinRate * 100).toFixed(0)}% no split atual vs ${(opponent.splitWinRate * 100).toFixed(0)}% do oponente.`,
-      impact: Number(Math.abs(normSplit).toFixed(2)),
-      direction: toSignalDirection(normSplit),
+      key: "team_role",
+      title: "Papel no time",
+      detail: `${pick.playerName} aparece em ${pick.teamRoleRank} de ${pick.teamPlayerCount} no proprio time para ${MARKET_RULES[pick.market].label}.`,
+      impact: pick.teamRoleScore,
+      direction: toSignalDirection(pick.teamRoleScore - 0.5),
     },
     {
-      key: "efficiency_matchup",
-      title: "Eficiência do confronto",
-      detail: `Saldo de pontos ${team.pointDifferential.toFixed(1)} vs ${opponent.pointDifferential.toFixed(1)}. Ataque ${team.averagePointsFor.toFixed(1)} contra defesa ${opponent.averagePointsAgainst.toFixed(1)}.`,
-      impact: Number(Math.abs(normEfficiency).toFixed(2)),
-      direction: toSignalDirection(normEfficiency),
+      key: "consistency",
+      title: "Consistencia",
+      detail: `Bateu pelo menos 85% da media em ${hitCount} dos ultimos ${pick.recentValues.length} jogos analisados.`,
+      impact: pick.consistencyScore,
+      direction: toSignalDirection(pick.consistencyScore - 0.55),
+    },
+    {
+      key: "game_environment",
+      title: "Ambiente do jogo",
+      detail: `Confronto projeta ${roundToOne(pick.projectedGameTotal)} pontos totais, o que ajuda a leitura deste mercado.`,
+      impact: clamp(Math.abs(pick.gameEnvironmentScore), 0, 1),
+      direction: toSignalDirection(pick.gameEnvironmentScore),
+    },
+    {
+      key: "matchup_context",
+      title: "Matchup",
+      detail: `Leitura ${matchupLabel} para ${MARKET_RULES[pick.market].label} contra ${pick.opponentName} hoje.`,
+      impact: clamp(Math.abs(pick.matchupScore), 0, 1),
+      direction: toSignalDirection(pick.matchupScore),
     },
     {
       key: "rest",
       title: "Descanso",
-      detail: `${team.team} com ${team.restDays} dia(s) de descanso vs ${opponent.restDays} do adversario.`,
-      impact: Number(Math.abs(normRest).toFixed(2)),
-      direction: toSignalDirection(normRest),
-    },
-    {
-      key: "market_edge",
-      title: "Edge vs mercado",
-      detail: `Odd atual ${team.odd.toFixed(2)}. Modelo indica diferenca de valor sobre a probabilidade implicita.`,
-      impact: Number(Math.abs(normMarketEdge).toFixed(2)),
-      direction: toSignalDirection(normMarketEdge),
+      detail: `${pick.teamName} chega com ${pick.restDays ?? "?"} dia(s) de descanso antes deste jogo.`,
+      impact: clamp(Math.abs(pick.restScore - 0.5) * 2, 0, 1),
+      direction: toSignalDirection((pick.restScore - 0.5) * 2),
     },
   ];
+
+  return signals.sort((left, right) => right.impact - left.impact).slice(0, 3);
 };
 
-const getConfidenceLevel = (confidence: number): NbaGoldListPick["confidenceLevel"] => {
-  if (confidence >= 0.79) return "alta";
-  if (confidence >= 0.63) return "media";
-  return "baixa";
+const buildSummary = (pick: RawCandidate): string => {
+  const marketLabel = MARKET_RULES[pick.market].label;
+  return `${pick.playerName} aparece como um dos nomes mais fortes do dia em ${marketLabel}, com projecao de ${roundToOne(
+    pick.projection
+  )} e tendencia ${pick.trendLabel}.`;
 };
 
-const getConfidenceReason = (
-  confidenceLevel: NbaGoldListPick["confidenceLevel"],
-  supportiveSignals: number,
-  edge: number,
-  usedRealStats: boolean
-): string => {
-  const source = usedRealStats ? "dados reais da temporada" : "fallback parcial de dados";
+const buildSections = (
+  candidates: RawCandidate[],
+  maxPicksPerMarket: number
+): NbaGoldListSection[] => {
+  const ranges = createRangeIndex(candidates);
 
-  if (confidenceLevel === "alta") {
-    return `Leitura forte em ${supportiveSignals} sinais com ${source} e edge de ${edge.toFixed(1)} p.p.`;
-  }
-  if (confidenceLevel === "media") {
-    return `Sinais consistentes (${source}) com edge de ${edge.toFixed(1)} p.p.`;
-  }
-  return `Cenario sensivel ao mercado (${source}); edge atual de ${edge.toFixed(1)} p.p.`;
+  return (Object.keys(MARKET_RULES) as NbaGoldListMarket[]).map((market) => {
+    const rule = MARKET_RULES[market];
+    const marketRanges = ranges.get(market)!;
+
+    const picks = candidates
+      .filter((candidate) => candidate.market === market)
+      .map((candidate) => {
+        const recentNorm = normalizeRange(
+          candidate.recentAverage,
+          marketRanges.minRecent,
+          marketRanges.maxRecent
+        );
+        const trendNorm = normalizeRange(
+          candidate.trendDelta,
+          marketRanges.minTrend,
+          marketRanges.maxTrend
+        );
+        const matchupNorm = (candidate.matchupScore + 1) / 2;
+        const scoreBase =
+          recentNorm * rule.weights.recent +
+          trendNorm * rule.weights.trend +
+          candidate.teamRoleScore * rule.weights.role +
+          candidate.consistencyScore * rule.weights.consistency +
+          matchupNorm * rule.weights.matchup +
+          candidate.restScore * rule.weights.rest +
+          candidate.homeScore * rule.weights.home;
+        const score = clamp(48 + scoreBase * 47, 1, 99);
+        const confidence = clamp(
+          0.5 +
+            candidate.consistencyScore * 0.18 +
+            candidate.teamRoleScore * 0.16 +
+            recentNorm * 0.11 +
+            matchupNorm * 0.07 +
+            (candidate.recentValues.length >= 5 ? 0.03 : 0),
+          0.5,
+          0.92
+        );
+        const confidenceLevel = getConfidenceLevel(confidence);
+
+        const pick: NbaGoldListPick = {
+          rank: 0,
+          market,
+          score: roundToOne(score),
+          confidence: Number(confidence.toFixed(2)),
+          confidenceLevel,
+          confidenceReason: buildConfidenceReason(candidate, confidenceLevel),
+          player: {
+            id: candidate.playerId,
+            name: candidate.playerName,
+            team: candidate.teamName,
+            opponent: candidate.opponentName,
+            side: candidate.side,
+            imageHint: candidate.imageHint,
+          },
+          match: candidate.match,
+          recentValues: candidate.recentValues,
+          recentAverage: roundToOne(candidate.recentAverage),
+          lastThreeAverage: roundToOne(candidate.lastThreeAverage),
+          projection: roundToOne(candidate.projection),
+          trend: candidate.trendLabel,
+          matchupRating: candidate.matchupRating,
+          teamContext: {
+            restDays: candidate.restDays,
+            teamRank: candidate.ownTeamContext.overallRank,
+            opponentDefenseRank: candidate.opponentTeamContext.defenseRank,
+            isHome: candidate.isHome,
+          },
+          summary: buildSummary(candidate),
+          supportSignals: buildSupportSignals(candidate),
+        };
+
+        return pick;
+      })
+      .sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score;
+        return right.projection - left.projection;
+      })
+      .slice(0, maxPicksPerMarket)
+      .map((pick, index) => ({
+        ...pick,
+        rank: index + 1,
+      }));
+
+    return {
+      market,
+      title: rule.title,
+      subtitle: rule.subtitle,
+      picks,
+    };
+  });
 };
 
-const buildPick = (
-  match: NbaMatch,
-  statsIndex: Map<string, NbaTeamSeasonStats>
-): NbaGoldListPick | null => {
-  const home = buildTeamContext(match, "home", statsIndex);
-  const away = buildTeamContext(match, "away", statsIndex);
+const buildTopPicks = (
+  sections: NbaGoldListSection[],
+  topPicksCount: number
+): NbaGoldListPick[] => {
+  const usedPlayers = new Set<string>();
+  const ranked = sections
+    .flatMap((section) => section.picks)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return right.projection - left.projection;
+    });
 
-  const overround = home.marketProbability + away.marketProbability;
-  const homeMarketProb = home.marketProbability / overround;
-  const awayMarketProb = away.marketProbability / overround;
-
-  const homeNormForm = clamp(home.last10WinRate - away.last10WinRate, -1, 1);
-  const homeNormSplit = clamp(home.splitWinRate - away.splitWinRate, -1, 1);
-  const homeNormRest = clamp((home.restDays - away.restDays) / 3, -1, 1);
-  const homeNormEfficiency = clamp((home.pointDifferential - away.pointDifferential) / 15, -1, 1);
-
-  const awayNormForm = -homeNormForm;
-  const awayNormSplit = -homeNormSplit;
-  const awayNormRest = -homeNormRest;
-  const awayNormEfficiency = -homeNormEfficiency;
-
-  const homeStatsWeight =
-    homeNormForm * 0.28 +
-    homeNormSplit * 0.22 +
-    homeNormRest * 0.12 +
-    homeNormEfficiency * 0.24;
-  const awayStatsWeight =
-    awayNormForm * 0.28 +
-    awayNormSplit * 0.22 +
-    awayNormRest * 0.12 +
-    awayNormEfficiency * 0.24;
-
-  const homeModelProb = clamp(0.5 + homeStatsWeight * 0.45, 0.08, 0.92);
-  const awayModelProb = clamp(0.5 + awayStatsWeight * 0.45, 0.08, 0.92);
-
-  const homeEdge = (homeModelProb - homeMarketProb) * 100;
-  const awayEdge = (awayModelProb - awayMarketProb) * 100;
-
-  const pickHome = homeEdge >= awayEdge;
-  const selected = pickHome ? home : away;
-  const opponent = pickHome ? away : home;
-  const selectedModel = pickHome ? homeModelProb : awayModelProb;
-  const selectedMarket = pickHome ? homeMarketProb : awayMarketProb;
-  const selectedEdge = pickHome ? homeEdge : awayEdge;
-  const selectedWeight = pickHome ? homeStatsWeight : awayStatsWeight;
-
-  const selectedNormForm = pickHome ? homeNormForm : awayNormForm;
-  const selectedNormSplit = pickHome ? homeNormSplit : awayNormSplit;
-  const selectedNormRest = pickHome ? homeNormRest : awayNormRest;
-  const selectedNormEfficiency = pickHome ? homeNormEfficiency : awayNormEfficiency;
-  const selectedNormMarket = clamp(selectedEdge / 10, -1, 1);
-
-  const signals = buildSignals(
-    selected,
-    opponent,
-    selectedNormForm,
-    selectedNormSplit,
-    selectedNormRest,
-    selectedNormEfficiency,
-    selectedNormMarket
-  );
-
-  const supportSignals = signals
-    .filter((signal) => signal.direction !== "contra")
-    .sort((a, b) => b.impact - a.impact)
-    .slice(0, 4);
-
-  if (supportSignals.length < 3) {
-    return null;
+  const topPicks: NbaGoldListPick[] = [];
+  for (const pick of ranked) {
+    if (usedPlayers.has(pick.player.id)) continue;
+    usedPlayers.add(pick.player.id);
+    topPicks.push({
+      ...pick,
+      rank: topPicks.length + 1,
+    });
+    if (topPicks.length >= topPicksCount) break;
   }
 
-  const dataPenalty = selected.hasRealStats && opponent.hasRealStats ? 0 : 4;
-  const lowEdgePenalty = Math.abs(selectedEdge) < 1.2 ? 3 : 0;
-  const score = clamp(
-    50 + selectedWeight * 30 + selectedEdge * 1.8 - dataPenalty - lowEdgePenalty,
-    1,
-    99
-  );
-  if (score < SCORE_THRESHOLD) {
-    return null;
-  }
-
-  const supportiveSignals = supportSignals.filter(
-    (signal) => signal.direction === "a_favor"
-  ).length;
-  const confidence = clamp(
-    0.52 +
-      Math.abs(selectedWeight) * 0.28 +
-      supportiveSignals * 0.07 +
-      (Math.abs(selectedEdge) >= 4 ? 0.04 : 0) +
-      (selected.gamesPlayed >= 50 ? 0.02 : 0) +
-      (selected.hasRealStats && opponent.hasRealStats ? 0.03 : 0),
-    0.5,
-    0.93
-  );
-  const confidenceLevel = getConfidenceLevel(confidence);
-  const fairOdd = selectedModel > 0 ? Number((1 / selectedModel).toFixed(2)) : selected.odd;
-
-  return {
-    rank: 0,
-    score: Number(score.toFixed(1)),
-    confidence: Number(confidence.toFixed(2)),
-    confidenceLevel,
-    confidenceReason: getConfidenceReason(
-      confidenceLevel,
-      supportSignals.length,
-      selectedEdge,
-      selected.hasRealStats && opponent.hasRealStats
-    ),
-    match,
-    recommendation: {
-      market: "moneyline",
-      side: selected.side,
-      team: selected.team,
-      odds: selected.odd,
-      impliedProbability: Number((selectedMarket * 100).toFixed(1)),
-      modelProbability: Number((selectedModel * 100).toFixed(1)),
-      edge: Number(selectedEdge.toFixed(1)),
-    },
-    summary: `${selected.team} aparece com edge de ${selectedEdge.toFixed(1)} p.p. (odd justa ${fairOdd}), sustentado por forma, eficiência e contexto de jogo.`,
-    supportSignals: supportSignals.slice(0, 3),
-  };
-};
-
-const buildFallbackPick = (
-  match: NbaMatch,
-  statsIndex: Map<string, NbaTeamSeasonStats>
-): NbaGoldListPick => {
-  const home = buildTeamContext(match, "home", statsIndex);
-  const away = buildTeamContext(match, "away", statsIndex);
-  const pickHome = home.odd <= away.odd;
-  const selected = pickHome ? home : away;
-  const opponent = pickHome ? away : home;
-
-  const signals = buildSignals(
-    selected,
-    opponent,
-    clamp(selected.last10WinRate - opponent.last10WinRate, -1, 1),
-    clamp(selected.splitWinRate - opponent.splitWinRate, -1, 1),
-    clamp((selected.restDays - opponent.restDays) / 3, -1, 1),
-    clamp((selected.pointDifferential - opponent.pointDifferential) / 15, -1, 1),
-    0
-  );
-
-  return {
-    rank: 0,
-    score: 55,
-    confidence: 0.62,
-    confidenceLevel: "media",
-    confidenceReason:
-      "Fallback controlado enquanto o mercado nao fornece sinais suficientes de valor.",
-    match,
-    recommendation: {
-      market: "moneyline",
-      side: selected.side,
-      team: selected.team,
-      odds: selected.odd,
-      impliedProbability: Number((selected.marketProbability * 100).toFixed(1)),
-      modelProbability: Number((selected.marketProbability * 100 + 1.5).toFixed(1)),
-      edge: 1.5,
-    },
-    summary: `${selected.team} entra como opcao de menor risco relativo no fallback do MVP.`,
-    supportSignals: signals
-      .sort((a, b) => b.impact - a.impact)
-      .slice(0, 3)
-      .map((signal) =>
-        signal.direction === "contra" ? { ...signal, direction: "neutro" as const } : signal
-      ),
-  };
+  return topPicks;
 };
 
 export const buildNbaGoldList = (
   matches: NbaMatch[],
   options: BuildNbaGoldListOptions
 ): NbaGoldListResponse => {
-  const statsIndex = buildStatsIndex(options.teamStats || []);
-
-  const picks = matches
-    .map((match) => buildPick(match, statsIndex))
-    .filter((pick): pick is NbaGoldListPick => Boolean(pick))
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return b.confidence - a.confidence;
-    });
-
-  const maxPicks = options.maxPicks ?? MAX_PICKS_DEFAULT;
-  const rankedSource =
-    picks.length > 0
-      ? picks.slice(0, maxPicks)
-      : matches.slice(0, maxPicks).map((match) => buildFallbackPick(match, statsIndex));
-
-  const ranked = rankedSource.map((pick, index) => ({
-    ...pick,
-    rank: index + 1,
-  }));
+  const playerAnalyses = options.playerAnalyses || [];
+  const teamStats = options.teamStats || [];
+  const rawCandidates = buildRawCandidates(matches, playerAnalyses, teamStats);
+  const sections = buildSections(
+    rawCandidates,
+    options.maxPicksPerMarket ?? MAX_PICKS_PER_MARKET
+  );
+  const topPicks = buildTopPicks(sections, options.topPicksCount ?? TOP_PICKS_COUNT);
+  const totalPlayers = new Set(
+    rawCandidates.map((candidate) => `${candidate.match.id}:${candidate.playerId}`)
+  ).size;
 
   return {
     date: formatDateInBrt(new Date()),
-    picks: ranked,
+    heroTitle: TODAY_HERO_TITLE,
+    heroSubtitle: TODAY_HERO_SUBTITLE,
+    topPicks,
+    sections,
     metadata: {
       totalMatches: matches.length,
-      analyzedMatches: matches.length,
-      opportunitiesCount: ranked.length,
+      analyzedMatches: playerAnalyses.length,
+      totalPlayers,
+      opportunitiesCount: sections.reduce(
+        (sum, section) => sum + section.picks.length,
+        0
+      ),
       lastUpdate: new Date().toISOString(),
       dataSource: options.dataSource,
       warnings: options.warnings || [],

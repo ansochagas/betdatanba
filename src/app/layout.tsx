@@ -5,7 +5,7 @@ import { SessionProvider } from "@/components/SessionProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BETDATA | Inteligência para apostas em NBA",
+  title: "BETDATA NBA | Inteligência para apostas em NBA",
   description:
     "Algoritmos avançados e estatísticas em tempo real para apostar com confiança no basquete (NBA).",
 };

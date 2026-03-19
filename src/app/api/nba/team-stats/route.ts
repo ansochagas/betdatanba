@@ -36,7 +36,7 @@ const buildEmptyFallback = (
       generatedAt: new Date().toISOString(),
       warnings: [
         warning,
-        "Pre-jogo exibido sem estatisticas da temporada ate normalizar a conexao da BetsAPI.",
+        "Pre-jogo exibido sem estatisticas completas da temporada no momento.",
       ],
     },
   };
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         teams: filteredTeams.slice(0, limit),
         snapshot: result.snapshot,
       },
-      source: "betsapi",
+      source: "feed",
       cached: false,
       responseTimeMs: Date.now() - startedAt,
     });
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
             warnings: [...backup.snapshot.warnings, warning],
           },
         },
-        source: "cache-fallback",
+        source: "fallback",
         cached: true,
         fallback: true,
         responseTimeMs: Date.now() - startedAt,
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
         teams: emptyFallback.teams,
         snapshot: emptyFallback.snapshot,
       },
-      source: "empty-fallback",
+      source: "fallback",
       fallback: true,
       cached: false,
       responseTimeMs: Date.now() - startedAt,

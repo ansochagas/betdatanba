@@ -13,6 +13,7 @@ import ReportsTool from "@/components/ReportsTool";
 import { isDashboardToolEnabled, isOnboardingEnabled } from "@/lib/feature-flags";
 import NbaAnalysisTool from "@/components/nba/NbaAnalysisTool";
 import NbaLiveTool from "@/components/nba/NbaLiveTool";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 
 interface SubscriptionInfo {
@@ -55,9 +56,9 @@ function DashboardContent() {
     },
     {
       id: "gold-list" as Tool,
-      name: "Lista de Ouro",
-      description: "Melhores oportunidades do dia",
-      icon: "G",
+      name: "Melhores do Dia",
+      description: "O que vale mais atencao hoje",
+      icon: "M",
       comingSoon: false,
     },
     {
@@ -142,8 +143,8 @@ function DashboardContent() {
       <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-3">
-            <Link href="/" className="text-2xl font-bold text-white">
-              BETDATA
+            <Link href="/" className="text-white">
+              <BrandLogo size="md" />
             </Link>
             <span className="text-zinc-400">•</span>
             <span className="text-zinc-400">Dashboard</span>

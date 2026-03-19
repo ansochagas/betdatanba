@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -140,11 +141,8 @@ export default function Register() {
       <div className="relative z-10 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link
-            href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-orange-500 bg-clip-text text-transparent mb-2 block"
-          >
-            BETDATA
+          <Link href="/" className="mb-3 inline-flex text-white">
+            <BrandLogo size="lg" showMark={false} />
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">Criar Conta</h1>
           <p className="text-gray-400">Comece seu teste gratuito de 1 dia</p>

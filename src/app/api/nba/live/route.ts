@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     const payload = {
       success: true,
       data,
-      source: "betsapi",
+      source: "feed",
       cached: false,
       metadata: {
         totalLiveGames: games.length,
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: getBetsApiFriendlyMessage(error),
-        source: "betsapi",
+        source: "fallback",
         responseTimeMs: Date.now() - startedAt,
       },
       { status: 502 }
