@@ -19,24 +19,19 @@ export async function GET(request: NextRequest) {
     const { subscription, validation } =
       await SubscriptionManager.getValidatedSubscription(userId);
 
-    if (!subscription) {
-      return NextResponse.json(
-        { error: "Assinatura não encontrada" },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({
       success: true,
-      subscription: {
-        id: subscription.id,
-        status: subscription.status,
-        planId: subscription.planId,
-        currentPeriodStart: subscription.currentPeriodStart.toISOString(),
-        currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
-        trialEndsAt: subscription.trialEndsAt?.toISOString() || null,
-        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-      },
+      subscription: subscription
+        ? {
+            id: subscription.id,
+            status: subscription.status,
+            planId: subscription.planId,
+            currentPeriodStart: subscription.currentPeriodStart.toISOString(),
+            currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
+            trialEndsAt: subscription.trialEndsAt?.toISOString() || null,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          }
+        : null,
       access: {
         hasNbaAccess: validation.hasNbaAccess,
         hasCsgoAccess: validation.hasCsgoAccess,

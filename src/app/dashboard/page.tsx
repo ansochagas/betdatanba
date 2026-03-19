@@ -5,7 +5,6 @@ import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { RefreshCw, Play, Clock, Users, ExternalLink } from "lucide-react";
-import TrialReminder from "@/components/TrialReminder";
 import MatchCard from "@/components/MatchCard";
 import GoldListTool from "@/components/GoldListTool";
 import OnboardingCard from "@/components/OnboardingCard";
@@ -19,8 +18,9 @@ import BrandLogo from "@/components/brand/BrandLogo";
 interface SubscriptionInfo {
   status: string;
   daysRemaining: number;
-  planId: string;
+  planId: string | null;
   hasNbaAccess: boolean;
+  hasSubscription: boolean;
 }
 
 type Tool = "analysis" | "gold-list" | "live" | "reports";
@@ -38,10 +38,11 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [activeTool, setActiveTool] = useState<Tool>("analysis");
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo>({
-    status: "TRIALING",
-    daysRemaining: 5,
-    planId: "trial",
-    hasNbaAccess: true,
+    status: "INACTIVE",
+    daysRemaining: 0,
+    planId: null,
+    hasNbaAccess: false,
+    hasSubscription: false,
   });
   const fetchedSubscription = useRef(false);
   const postCheckoutRef = useRef(false);
@@ -91,8 +92,9 @@ function DashboardContent() {
         setSubscriptionInfo({
           status: data.validation.status,
           daysRemaining: data.validation.daysRemaining,
-          planId: data.subscription?.planId || "trial",
+          planId: data.subscription?.planId || null,
           hasNbaAccess: accessFromApi,
+          hasSubscription: Boolean(data.subscription),
         });
       }
     } catch (error) {
@@ -134,11 +136,24 @@ function DashboardContent() {
     (subscriptionInfo.status === "TRIALING" &&
       subscriptionInfo.daysRemaining > 0));
 
+  const planStatusLabel = !subscriptionInfo.hasSubscription
+    ? "Sem plano"
+    : subscriptionInfo.status === "ACTIVE"
+    ? "Plano ativo"
+    : subscriptionInfo.status === "TRIALING"
+    ? "Trial ativo"
+    : "Inativo";
+
+  const planStatusColor = !subscriptionInfo.hasSubscription
+    ? "text-zinc-400"
+    : subscriptionInfo.status === "ACTIVE"
+    ? "text-green-400"
+    : subscriptionInfo.status === "TRIALING"
+    ? "text-blue-400"
+    : "text-red-400";
+
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Trial Reminder */}
-      <TrialReminder />
-
       {/* Header */}
       <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -224,42 +239,32 @@ function DashboardContent() {
                 <div className="space-y-2 text-xs text-zinc-400">
                   <div className="flex items-center justify-between gap-3">
                     <span>Status:</span>
-                    <span
-                      className={`${
-                        subscriptionInfo.status === "ACTIVE"
-                          ? "text-green-400"
-                          : subscriptionInfo.status === "TRIALING"
-                          ? "text-blue-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {subscriptionInfo.status === "ACTIVE"
-                        ? "Plano Ativo"
-                        : subscriptionInfo.status === "TRIALING"
-                        ? "Trial Ativo"
-                        : "Expirado"}
-                    </span>
+                    <span className={planStatusColor}>{planStatusLabel}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <span>Dias restantes:</span>
-                    <span
-                      className={`${
-                        subscriptionInfo.daysRemaining <= 7
-                          ? "text-red-400"
-                          : subscriptionInfo.daysRemaining <= 30
-                          ? "text-orange-400"
-                          : "text-green-400"
-                      }`}
-                    >
-                      {subscriptionInfo.daysRemaining}
-                    </span>
+                    {subscriptionInfo.hasSubscription ? (
+                      <span
+                        className={`${
+                          subscriptionInfo.daysRemaining <= 7
+                            ? "text-red-400"
+                            : subscriptionInfo.daysRemaining <= 30
+                            ? "text-orange-400"
+                            : "text-green-400"
+                        }`}
+                      >
+                        {subscriptionInfo.daysRemaining}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-500">—</span>
+                    )}
                   </div>
                 </div>
                 <Link
                   href="/upgrade"
                   className="mt-3 w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-xs font-bold py-2 px-3 rounded transition-all text-center block"
                 >
-                  Renovar Plano
+                  {subscriptionInfo.hasSubscription ? "Gerenciar plano" : "Contratar plano"}
                 </Link>
               </div>
             </div>
@@ -273,11 +278,10 @@ function DashboardContent() {
                 <div className="flex min-h-[400px] flex-col items-center justify-center space-y-4 text-center">
                   <div className="text-4xl">🔒</div>
                   <h2 className="text-xl font-bold sm:text-2xl">
-                    Seu trial ou plano expirou
+                    Você ainda não tem um plano ativo
                   </h2>
                   <p className="max-w-xl text-sm text-gray-400 sm:text-base">
-                    Para continuar acessando jogos, estatísticas e análises,
-                    contrate um plano.
+                    Para liberar jogos, análises e Melhores do Dia, contrate um plano.
                   </p>
                   <Link
                     href="/upgrade"

@@ -20,7 +20,13 @@ export interface SubscriptionData {
 
 export interface SubscriptionValidation {
   isValid: boolean;
-  status: "ACTIVE" | "TRIALING" | "EXPIRED" | "CANCELLED" | "INVALID";
+  status:
+    | "ACTIVE"
+    | "TRIALING"
+    | "EXPIRED"
+    | "CANCELLED"
+    | "INVALID"
+    | "INACTIVE";
   daysRemaining: number;
   planId: string;
   hasNbaAccess: boolean;
@@ -54,7 +60,7 @@ export class SubscriptionManager {
       });
 
       if (!subscription) {
-        result.errors.push("Subscription não encontrada");
+        result.status = "INACTIVE";
         return result;
       }
 

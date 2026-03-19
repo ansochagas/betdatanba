@@ -3,8 +3,7 @@ import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 import { notifyAdminTelegram } from "@/lib/admin-notify";
-import { getBillingProvider } from "@/lib/billing/provider";
-import { TRIAL_DURATION_DAYS, isPhoneOtpRequired } from "@/lib/phone-otp";
+import { isPhoneOtpRequired } from "@/lib/phone-otp";
 import { normalizeBrazilPhone } from "@/lib/phone-utils";
 import { prisma } from "@/lib/prisma";
 
@@ -144,9 +143,6 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    const trialEndDate = new Date(now);
-    trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DURATION_DAYS);
-    const billingProvider = getBillingProvider();
 
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -170,18 +166,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      await tx.subscription.create({
-        data: {
-          userId: user.id,
-          billingProvider,
-          status: "trialing",
-          planId: "nba_trial",
-          currentPeriodStart: now,
-          currentPeriodEnd: trialEndDate,
-          trialEndsAt: trialEndDate,
-        },
-      });
-
       return user;
     });
 
@@ -192,7 +176,7 @@ export async function POST(request: NextRequest) {
           `E-mail: ${email}`,
           `Nome: ${name}`,
           normalizedPhone ? `Telefone: ${normalizedPhone}` : "Telefone: não informado",
-          `Trial até: ${trialEndDate.toISOString()}`,
+          "Status inicial: sem plano ativo",
         ].join("\n")
       );
     } catch (notifyError) {

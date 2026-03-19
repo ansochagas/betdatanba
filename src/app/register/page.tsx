@@ -7,7 +7,6 @@ import { useState } from "react";
 
 import BrandLogo from "@/components/brand/BrandLogo";
 
-const TRIAL_DURATION_DAYS = 1;
 const REQUIRE_PHONE_OTP =
   process.env.NEXT_PUBLIC_REQUIRE_PHONE_OTP === "true";
 
@@ -149,7 +148,7 @@ export default function Register() {
           </Link>
           <h1 className="mb-2 text-3xl font-bold text-white">Criar conta</h1>
           <p className="text-gray-400">
-            Comece seu teste gratuito de {TRIAL_DURATION_DAYS} dia.
+            Crie sua conta para contratar seu plano.
           </p>
         </div>
 
@@ -303,7 +302,7 @@ export default function Register() {
               disabled={loading}
               className="w-full rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 font-bold text-white transition-all duration-300 hover:from-orange-600 hover:to-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Criando conta..." : "Criar conta grátis"}
+              {loading ? "Criando conta..." : "Criar conta"}
             </button>
           </form>
 
@@ -312,15 +311,13 @@ export default function Register() {
               <div className="flex h-4 w-4 items-center justify-center rounded bg-green-500/20">
                 <span className="text-xs text-green-400">✓</span>
               </div>
-              <span>
-                {TRIAL_DURATION_DAYS} dia grátis • Sem cartão necessário
-              </span>
+              <span>Cadastre-se em menos de 1 minuto</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <div className="flex h-4 w-4 items-center justify-center rounded bg-green-500/20">
                 <span className="text-xs text-green-400">✓</span>
               </div>
-              <span>Cancele quando quiser</span>
+              <span>Pagamento seguro pelo Mercado Pago</span>
             </div>
           </div>
         </div>

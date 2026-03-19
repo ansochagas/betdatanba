@@ -71,7 +71,7 @@ export default function MinhaContaPage() {
   };
 
   const getSubscriptionStatus = () => {
-    if (!subscription) return { text: "Carregando...", color: "text-gray-400" };
+    if (!subscription) return { text: "Sem plano", color: "text-zinc-400" };
 
     const status = subscription.status?.toLowerCase();
 
@@ -249,6 +249,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
 
   const daysRemaining = calculateDaysRemaining();
   const statusInfo = getSubscriptionStatus();
+  const hasActivePlan = Boolean(subscription);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -342,15 +343,19 @@ Depois de enviar, aguarde a confirmação no bot.`;
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-zinc-400">Dias restantes:</span>
-                    <span
-                      className={
-                        daysRemaining <= 7
-                          ? "text-red-400 font-bold"
-                          : "text-green-400"
-                      }
-                    >
-                      {daysRemaining}
-                    </span>
+                    {hasActivePlan ? (
+                      <span
+                        className={
+                          daysRemaining <= 7
+                            ? "text-red-400 font-bold"
+                            : "text-green-400"
+                        }
+                      >
+                        {daysRemaining}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-500">—</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -393,7 +398,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
                           ? new Date(
                               subscription.currentPeriodEnd
                             ).toLocaleDateString("pt-BR")
-                          : "N/A"}
+                          : "Sem plano ativo"}
                       </span>
                     </div>
                   </div>
@@ -405,14 +410,20 @@ Depois de enviar, aguarde a confirmação no bot.`;
                   <div className="text-center">
                     <div
                       className={`mb-2 text-5xl font-bold sm:text-6xl ${
-                        daysRemaining <= 7 ? "text-red-400" : "text-green-400"
+                        hasActivePlan
+                          ? daysRemaining <= 7
+                            ? "text-red-400"
+                            : "text-green-400"
+                          : "text-zinc-500"
                       }`}
                     >
-                      {daysRemaining}
+                      {hasActivePlan ? daysRemaining : "—"}
                     </div>
-                    <div className="text-zinc-400 mb-4">dias restantes</div>
+                    <div className="text-zinc-400 mb-4">
+                      {hasActivePlan ? "dias restantes" : "sem plano ativo"}
+                    </div>
 
-                    {daysRemaining <= 7 && (
+                    {hasActivePlan && daysRemaining <= 7 && (
                       <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4">
                         <p className="text-red-400 text-sm">
                           ⚠️ Seu plano expira em breve! Renove para continuar
@@ -425,7 +436,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
                       href="/upgrade"
                       className="inline-block bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-3 px-6 rounded-lg transition-all"
                     >
-                      Renovar Plano
+                      {hasActivePlan ? "Renovar plano" : "Contratar plano"}
                     </Link>
                   </div>
                 </div>

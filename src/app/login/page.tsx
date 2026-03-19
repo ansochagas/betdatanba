@@ -183,7 +183,7 @@ export default function Login() {
               href="/register"
               className="text-orange-400 hover:text-orange-300 font-medium"
             >
-              Criar conta grátis
+              Criar conta
             </Link>
           </p>
         </div>
