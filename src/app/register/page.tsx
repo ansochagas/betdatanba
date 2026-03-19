@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useState } from "react";
+
 import BrandLogo from "@/components/brand/BrandLogo";
+
+const TRIAL_DURATION_DAYS = 1;
+const REQUIRE_PHONE_OTP =
+  process.env.NEXT_PUBLIC_REQUIRE_PHONE_OTP === "true";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -22,10 +27,10 @@ export default function Register() {
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
+    setFormData((current) => ({
+      ...current,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,33 +39,31 @@ export default function Register() {
     setError("");
     setSuccess("");
 
-    // Validações básicas
     if (formData.password !== formData.confirmPassword) {
-      setError("As senhas não coincidem");
+      setError("As senhas não coincidem.");
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 8) {
-      setError("A senha deve ter pelo menos 8 caracteres");
+      setError("A senha deve ter pelo menos 8 caracteres.");
       setLoading(false);
       return;
     }
 
-    if (!formData.phone) {
-      setError("Informe seu telefone para validar o cadastro");
+    if (REQUIRE_PHONE_OTP && !formData.phone) {
+      setError("Informe seu telefone para validar o cadastro.");
       setLoading(false);
       return;
     }
 
-    if (!formData.otp) {
-      setError("Informe o código recebido por SMS");
+    if (REQUIRE_PHONE_OTP && !formData.otp) {
+      setError("Informe o código recebido por SMS.");
       setLoading(false);
       return;
     }
 
     try {
-      // Para teste: criar conta diretamente no banco (sem email)
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
@@ -69,18 +72,17 @@ export default function Register() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          phone: formData.phone,
-          otp: formData.otp,
+          phone: formData.phone || null,
+          otp: formData.otp || null,
           password: formData.password,
         }),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erro ao criar conta");
+        throw new Error(data.error || "Erro ao criar conta.");
       }
 
-      // Login automático após registro
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
@@ -88,13 +90,12 @@ export default function Register() {
       });
 
       if (result?.error) {
-        throw new Error("Conta criada, mas erro no login automático");
+        throw new Error("Conta criada, mas houve erro no login automático.");
       }
 
-      // Redirecionar para dashboard
       router.push("/dashboard");
-    } catch (error: any) {
-      setError(error.message);
+    } catch (registerError: any) {
+      setError(registerError.message);
     } finally {
       setLoading(false);
     }
@@ -102,12 +103,14 @@ export default function Register() {
 
   const handleSendOtp = async () => {
     if (!formData.phone) {
-      setError("Informe seu telefone com DDD");
+      setError("Informe seu telefone com DDD.");
       return;
     }
+
     setOtpLoading(true);
     setError("");
     setSuccess("");
+
     try {
       const response = await fetch("/api/auth/send-otp", {
         method: "POST",
@@ -119,45 +122,45 @@ export default function Register() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "Erro ao enviar código");
+        throw new Error(data.error || "Erro ao enviar código.");
       }
 
-      setSuccess("Código enviado por SMS. Validade: 5 minutos.");
-    } catch (err: any) {
-      setError(err.message);
+      setSuccess(
+        data?.message || "Código enviado por SMS. Validade: 5 minutos."
+      );
+    } catch (sendError: any) {
+      setError(sendError.message);
     } finally {
       setOtpLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      {/* Background Effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-20 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-20 left-20 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-[150px]" />
+    <div className="flex min-h-screen items-center justify-center bg-black p-4">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute right-20 top-20 h-[600px] w-[600px] rounded-full bg-cyan-500/5 blur-[150px]" />
+        <div className="absolute bottom-20 left-20 h-[500px] w-[500px] rounded-full bg-orange-500/5 blur-[150px]" />
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <Link href="/" className="mb-3 inline-flex text-white">
             <BrandLogo size="lg" showMark={false} />
           </Link>
-          <h1 className="text-3xl font-bold text-white mb-2">Criar Conta</h1>
-          <p className="text-gray-400">Comece seu teste gratuito de 1 dia</p>
+          <h1 className="mb-2 text-3xl font-bold text-white">Criar conta</h1>
+          <p className="text-gray-400">
+            Comece seu teste gratuito de {TRIAL_DURATION_DAYS} dia.
+          </p>
         </div>
 
-        {/* Form */}
-        <div className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-xl p-8">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-8 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name */}
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-300"
               >
-                Nome Completo
+                Nome completo
               </label>
               <input
                 type="text"
@@ -166,71 +169,72 @@ export default function Register() {
                 required
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="Seu nome completo"
               />
             </div>
 
-            {/* Phone */}
-            <div>
-              <label
-                htmlFor="phone"
-                className="block text-sm font-medium text-gray-300 mb-2"
-              >
-                Telefone (com DDD)
-              </label>
-              <div className="flex gap-3">
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  required
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="11999999999"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={otpLoading}
-                  className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {otpLoading ? "Enviando..." : "Enviar código"}
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Vamos validar seu telefone para liberar o teste grátis.
-              </p>
-            </div>
+            {REQUIRE_PHONE_OTP && (
+              <>
+                <div>
+                  <label
+                    htmlFor="phone"
+                    className="mb-2 block text-sm font-medium text-gray-300"
+                  >
+                    Telefone com DDD
+                  </label>
+                  <div className="flex gap-3">
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      required
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="11999999999"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={otpLoading}
+                      className="rounded-lg bg-orange-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {otpLoading ? "Enviando..." : "Enviar código"}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Vamos validar seu telefone antes de liberar o acesso.
+                  </p>
+                </div>
 
-            {/* OTP */}
-            <div>
-              <label
-                htmlFor="otp"
-                className="block text-sm font-medium text-gray-300 mb-2"
-              >
-                Código recebido por SMS
-              </label>
-              <input
-                type="text"
-                id="otp"
-                name="otp"
-                required
-                value={formData.otp}
-                onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Digite o código de 6 dígitos"
-              />
-            </div>
+                <div>
+                  <label
+                    htmlFor="otp"
+                    className="mb-2 block text-sm font-medium text-gray-300"
+                  >
+                    Código recebido por SMS
+                  </label>
+                  <input
+                    type="text"
+                    id="otp"
+                    name="otp"
+                    required
+                    value={formData.otp}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Digite o código de 6 dígitos"
+                  />
+                </div>
+              </>
+            )}
 
-            {/* Email */}
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-300"
               >
-                Email
+                E-mail
               </label>
               <input
                 type="email"
@@ -239,16 +243,15 @@ export default function Register() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="seu@email.com"
               />
             </div>
 
-            {/* Password */}
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-300"
               >
                 Senha
               </label>
@@ -259,18 +262,17 @@ export default function Register() {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Mínimo 8 caracteres"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="Mínimo de 8 caracteres"
               />
             </div>
 
-            {/* Confirm Password */}
             <div>
               <label
                 htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-300"
               >
-                Confirmar Senha
+                Confirmar senha
               </label>
               <input
                 type="password"
@@ -279,59 +281,56 @@ export default function Register() {
                 required
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="Digite a senha novamente"
               />
             </div>
 
-            {/* Error Message */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                <p className="text-red-400 text-sm">{error}</p>
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+                <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
 
-            {/* Success Message */}
             {success && (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                <p className="text-green-400 text-sm">{success}</p>
+              <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-4">
+                <p className="text-sm text-green-400">{success}</p>
               </div>
             )}
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 font-bold text-white transition-all duration-300 hover:from-orange-600 hover:to-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Criando conta..." : "Criar Conta Grátis"}
+              {loading ? "Criando conta..." : "Criar conta grátis"}
             </button>
           </form>
 
-          {/* Trust Signals */}
           <div className="mt-6 space-y-3">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <div className="w-4 h-4 bg-green-500/20 rounded flex items-center justify-center">
-                <span className="text-green-400 text-xs">✓</span>
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-green-500/20">
+                <span className="text-xs text-green-400">✓</span>
               </div>
-              <span>2 dias grátis • Sem cartão necessário</span>
+              <span>
+                {TRIAL_DURATION_DAYS} dia grátis • Sem cartão necessário
+              </span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <div className="w-4 h-4 bg-green-500/20 rounded flex items-center justify-center">
-                <span className="text-green-400 text-xs">✓</span>
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-green-500/20">
+                <span className="text-xs text-green-400">✓</span>
               </div>
               <span>Cancele quando quiser</span>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8">
+        <div className="mt-8 text-center">
           <p className="text-gray-400">
             Já tem conta?{" "}
             <Link
               href="/login"
-              className="text-orange-400 hover:text-orange-300 font-medium"
+              className="font-medium text-orange-400 hover:text-orange-300"
             >
               Faça login
             </Link>

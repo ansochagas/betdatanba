@@ -1,13 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
+import { NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
+import { isPhoneOtpRequired, hasSmsProviderConfigured } from "@/lib/phone-otp";
 import { normalizeBrazilPhone } from "@/lib/phone-utils";
 import { sendSmsDevOtp } from "@/lib/smsdev";
 
 export const dynamic = "force-dynamic";
 
 const OTP_EXPIRATION_MINUTES = 5;
-const MIN_INTERVAL_MS = 20 * 1000; // 1 envio a cada 20s
+const MIN_INTERVAL_MS = 20 * 1000;
 const MAX_SENDS_PER_HOUR = 5;
 
 function getClientIp(request: NextRequest) {
@@ -15,12 +17,27 @@ function getClientIp(request: NextRequest) {
   if (forwarded) {
     return forwarded.split(",")[0].trim();
   }
-  // NextRequest não expõe req.ip; usar cabeçalho como melhor esforço
+
   return "unknown";
 }
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isPhoneOtpRequired()) {
+      return NextResponse.json({
+        success: true,
+        required: false,
+        message: "A verificação por SMS não é obrigatória no momento.",
+      });
+    }
+
+    if (!hasSmsProviderConfigured()) {
+      return NextResponse.json(
+        { error: "Verificação por SMS indisponível no momento." },
+        { status: 503 }
+      );
+    }
+
     const { phone } = await request.json();
     const normalizedPhone = normalizeBrazilPhone(phone);
 
@@ -31,7 +48,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Bloquear reuso de telefone já verificado
     const existingUser = await prisma.user.findFirst({
       where: {
         phone: normalizedPhone,
@@ -78,7 +94,6 @@ export async function POST(request: NextRequest) {
       sentCount = sentCountWindow + 1;
     }
 
-    // Gerar e armazenar OTP
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const codeHash = await hash(code, 10);
     const expiresAt = new Date(
@@ -117,6 +132,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      required: true,
       expiresInSeconds: OTP_EXPIRATION_MINUTES * 60,
       message: "Código enviado por SMS.",
     });

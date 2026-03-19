@@ -20,7 +20,8 @@ export async function sendSmsDevOtp({
   params.set("key", SMSDEV_KEY);
   params.set("type", "9");
   params.set("number", number);
-  params.set("msg", `Seu código é ${code}. Válido por 5 minutos. CS:GO Scout`);
+  params.set("msg", `Seu código é ${code}. Válido por 5 minutos. BETDATA NBA`);
+
   if (refer) {
     params.set("refer", refer);
   }
@@ -35,6 +36,7 @@ export async function sendSmsDevOtp({
 
   const text = await response.text();
   let data: any = undefined;
+
   try {
     data = JSON.parse(text);
   } catch {
@@ -54,9 +56,7 @@ export async function sendSmsDevOtp({
   }
 
   const id =
-    typeof data === "object" && data?.id
-      ? String(data.id)
-      : undefined;
+    typeof data === "object" && data?.id ? String(data.id) : undefined;
 
   return { id, raw: data };
 }

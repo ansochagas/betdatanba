@@ -250,48 +250,50 @@ export default function Home() {
 
                 <div className="mt-6 space-y-4">
                   <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                          Melhores do Dia
-                        </p>
-                        <p className="mt-2 text-xl font-bold text-white">
-                          Top oportunidades de leitura
-                        </p>
-                      </div>
-                      <div className="rounded-full bg-[#D7A24B]/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#E7C17A]">
-                        PTS / REB / AST
-                      </div>
+                    <div className="max-w-lg">
+                      <p className="text-xl font-bold text-white sm:text-2xl">
+                        Melhores oportunidades do dia PTS / REB / AST
+                      </p>
                     </div>
                     <div className="mt-4 grid gap-3">
                       <div className="rounded-xl border border-white/6 bg-black/30 p-4">
                         <div className="flex items-center justify-between gap-4">
                           <div>
-                        <p className="text-sm font-semibold text-white">
-                          Luka Doncic
-                        </p>
-                        <p className="mt-1 text-sm text-zinc-400">
-                              Leitura forte para pontos
-                        </p>
-                      </div>
-                          <p className="text-2xl font-black text-[#E7C17A]">
-                            86,5
-                          </p>
+                            <p className="text-sm font-semibold text-white">
+                              Luka Doncic
+                            </p>
+                            <p className="mt-1 text-sm text-zinc-400">
+                              Pontos com forte contexto no dia
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                              Score de probabilidade
+                            </p>
+                            <p className="mt-1 text-2xl font-black text-[#E7C17A]">
+                              86,5
+                            </p>
+                          </div>
                         </div>
                       </div>
                       <div className="rounded-xl border border-white/6 bg-black/30 p-4">
                         <div className="flex items-center justify-between gap-4">
                           <div>
-                        <p className="text-sm font-semibold text-white">
-                          Jalen Johnson
-                        </p>
-                        <p className="mt-1 text-sm text-zinc-400">
-                              Assistências com bom contexto
-                        </p>
-                      </div>
-                          <p className="text-2xl font-black text-emerald-300">
-                            86,3
-                          </p>
+                            <p className="text-sm font-semibold text-white">
+                              Jalen Johnson
+                            </p>
+                            <p className="mt-1 text-sm text-zinc-400">
+                              Assist?ncias com forte contexto no dia
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                              Score de probabilidade
+                            </p>
+                            <p className="mt-1 text-2xl font-black text-emerald-300">
+                              86,3
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
