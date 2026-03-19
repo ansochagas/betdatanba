@@ -335,7 +335,7 @@ export const buildNbaTeamSeasonStats = (
   const averageGamesPerTeam = teams.length > 0 ? (seasonGames.length * 2) / teams.length : 0;
 
   if (seasonGames.length === 0) {
-    warnings.push("Nao houve jogos finalizados retornados para a temporada atual.");
+    warnings.push("Não houve jogos finalizados retornados para a temporada atual.");
   }
 
   if (teams.length < 30) {
@@ -344,7 +344,7 @@ export const buildNbaTeamSeasonStats = (
 
   if (averageGamesPerTeam < 50) {
     warnings.push(
-      "Historico retornado esta abaixo do esperado para a temporada. Valide cobertura de dias no plano da API."
+      "Histórico retornado está abaixo do esperado para a temporada. Valide a cobertura de dias no plano da API."
     );
   }
 

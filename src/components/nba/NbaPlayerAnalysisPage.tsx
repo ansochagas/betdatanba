@@ -100,7 +100,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
         const payload = await response.json();
 
         if (!payload.success || !payload.data) {
-          throw new Error(payload.error || "Falha ao carregar analise dos jogadores.");
+          throw new Error(payload.error || "Falha ao carregar a análise dos jogadores.");
         }
 
         setData(payload.data as NbaPlayerAnalysisResponse);
@@ -108,7 +108,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Erro ao carregar analise dos jogadores."
+            : "Erro ao carregar a análise dos jogadores."
         );
       } finally {
         setLoading(false);
@@ -134,7 +134,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
               Voltar ao dashboard
             </Link>
             <span className="inline-flex w-full items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/70 px-4 py-2 text-sm text-zinc-300 sm:w-auto">
-              Analise dos jogadores
+              Análise dos jogadores
             </span>
           </div>
 
@@ -152,7 +152,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-zinc-400">
-                  Analise de jogadores NBA
+                  Análise de jogadores NBA
                 </p>
                 <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-4xl">
                   {(data?.homeTeam || homeTeam || "Time da Casa")} vs{" "}
@@ -171,7 +171,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
               <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-black/30 p-4 text-sm text-zinc-300">
                 <p className="font-semibold text-zinc-100">Leitura do painel</p>
                 <p className="mt-2">
-                  <span className="text-zinc-100">*</span> medias dos ultimos 5 jogos.
+                  <span className="text-zinc-100">*</span> médias dos últimos 5 jogos.
                 </p>
               </div>
             </div>
@@ -180,12 +180,12 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
           {loading ? (
             <div className="px-6 py-20 text-center text-zinc-300 sm:px-8">
               <RefreshCw className="mx-auto h-8 w-8 animate-spin text-orange-400" />
-              <p className="mt-4 text-lg font-semibold">Carregando analise dos jogadores...</p>
+              <p className="mt-4 text-lg font-semibold">Carregando análise dos jogadores...</p>
             </div>
           ) : error ? (
             <div className="px-6 py-16 sm:px-8">
               <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-6">
-                <p className="text-lg font-bold text-red-100">Falha ao carregar esta analise</p>
+                <p className="text-lg font-bold text-red-100">Falha ao carregar esta análise</p>
                 <p className="mt-2 text-sm text-red-200">{error}</p>
               </div>
             </div>
@@ -193,7 +193,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
             <div className="px-6 py-6 sm:px-8">
               {data.warnings.length > 0 && (
                 <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-                  <p className="font-semibold">Observacoes da fonte</p>
+                  <p className="font-semibold">Observações do painel</p>
                   <div className="mt-2 space-y-1">
                     {data.warnings.map((warning, index) => (
                       <p key={`warning-${index}`}>{warning}</p>
@@ -230,13 +230,13 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                         </div>
 
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${accent.chip}`}>
-                          Ultimos 5
+                          últimos 5
                         </span>
                       </div>
 
                       {team.players.length === 0 ? (
                         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 text-sm text-zinc-400">
-                          Nenhum jogador com amostra valida foi retornado para este time.
+                          Nenhum jogador com amostra válida foi retornado para este time.
                         </div>
                       ) : (
                         <div className="mt-4 space-y-4">
@@ -277,17 +277,17 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                 {[
                                   {
-                                    label: "Media pontos*",
+                                    label: "Média de pontos*",
                                     average: player.points.average,
                                     values: player.points.values,
                                   },
                                   {
-                                    label: "Media rebotes*",
+                                    label: "Média de rebotes*",
                                     average: player.rebounds.average,
                                     values: player.rebounds.values,
                                   },
                                   {
-                                    label: "Media assistencias*",
+                                    label: "Média de assistências*",
                                     average: player.assists.average,
                                     values: player.assists.values,
                                   },
@@ -303,7 +303,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                                       {formatAverage(metric.average)}
                                     </p>
                                     <p className="mt-3 text-xs text-zinc-400">
-                                      Ultimos 5:{" "}
+                                      últimos 5:{" "}
                                       <span className="font-mono text-zinc-200">
                                         {formatLastFive(metric.values)}
                                       </span>

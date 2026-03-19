@@ -98,11 +98,11 @@ const MAX_PICKS_PER_MARKET = 5;
 const TOP_PICKS_COUNT = 6;
 const TODAY_HERO_TITLE = "Melhores do Dia";
 const TODAY_HERO_SUBTITLE =
-  "Leitura objetiva dos jogos de hoje para apontar os nomes mais fortes em pontos, rebotes e assistencias.";
+  "Leitura objetiva dos jogos de hoje para apontar os nomes mais fortes em pontos, rebotes e assistências.";
 
 const MARKET_RULES: Record<NbaGoldListMarket, MarketRule> = {
   points: {
-    title: "Melhor Media de Pontos do Dia",
+    title: "Melhor Média de Pontos do Dia",
     subtitle: "Quem chega com melhor contexto ofensivo para o mercado de pontos.",
     label: "pontos",
     minAverage: 12,
@@ -117,7 +117,7 @@ const MARKET_RULES: Record<NbaGoldListMarket, MarketRule> = {
     },
   },
   rebounds: {
-    title: "Melhor Media de Rebotes do Dia",
+    title: "Melhor Média de Rebotes do Dia",
     subtitle: "Nomes com volume recente e ambiente forte para rebotes hoje.",
     label: "rebotes",
     minAverage: 5,
@@ -132,8 +132,8 @@ const MARKET_RULES: Record<NbaGoldListMarket, MarketRule> = {
     },
   },
   assists: {
-    title: "Melhor Media de Assistencias do Dia",
-    subtitle: "Jogadores com melhor leitura de criacao para os jogos de hoje.",
+    title: "Melhor Média de Assistências do Dia",
+    subtitle: "Jogadores com melhor leitura de criação para os jogos de hoje.",
     label: "assistencias",
     minAverage: 4,
     weights: {
@@ -571,21 +571,21 @@ const normalizeRange = (value: number, min: number, max: number): number => {
 
 const buildConfidenceReason = (pick: RawCandidate, confidenceLevel: NbaConfidenceLevel): string => {
   if (confidenceLevel === "alta") {
-    return `${pick.playerName} chega com papel forte no time, tendencia ${pick.trendLabel} e leitura favoravel de confronto.`;
+    return `${pick.playerName} chega com papel forte no time, tendência ${pick.trendLabel} e leitura favoravel de confronto.`;
   }
 
   if (confidenceLevel === "media") {
-    return `${pick.playerName} tem base recente consistente e contexto util para o mercado de ${MARKET_RULES[pick.market].label}.`;
+    return `${pick.playerName} tem base recente consistente e contexto útil para o mercado de ${MARKET_RULES[pick.market].label}.`;
   }
 
-  return `${pick.playerName} entra como nome de apoio para hoje, mas com leitura mais sensivel a variacao do jogo.`;
+  return `${pick.playerName} entra como nome de apoio para hoje, mas com leitura mais sensível ? variação do jogo.`;
 };
 
 const buildSupportSignals = (pick: RawCandidate): NbaOpportunitySignal[] => {
   const hitCount = pick.recentValues.filter((value) => value >= pick.recentAverage * 0.85).length;
   const matchupLabel =
     pick.matchupRating === "muito_favoravel"
-      ? "muito favoravel"
+      ? "muito favorável"
       : pick.matchupRating === "favoravel"
         ? "favoravel"
         : pick.matchupRating === "dificil"
@@ -596,21 +596,21 @@ const buildSupportSignals = (pick: RawCandidate): NbaOpportunitySignal[] => {
     {
       key: "recent_form",
       title: "Forma recente",
-      detail: `${pick.playerName} vem de ${roundToOne(pick.recentAverage)} de media nos ultimos 5 jogos e ${roundToOne(pick.lastThreeAverage)} nos ultimos 3.`,
+      detail: `${pick.playerName} vem de ${roundToOne(pick.recentAverage)} de média nos últimos 5 jogos e ${roundToOne(pick.lastThreeAverage)} nos últimos 3.`,
       impact: clamp(0.4 + Math.abs(pick.trendDelta) / 4, 0, 1),
       direction: toSignalDirection(pick.trendDelta / 2),
     },
     {
       key: "team_role",
       title: "Papel no time",
-      detail: `${pick.playerName} aparece em ${pick.teamRoleRank} de ${pick.teamPlayerCount} no proprio time para ${MARKET_RULES[pick.market].label}.`,
+      detail: `${pick.playerName} aparece em ${pick.teamRoleRank} de ${pick.teamPlayerCount} no próprio time para ${MARKET_RULES[pick.market].label}.`,
       impact: pick.teamRoleScore,
       direction: toSignalDirection(pick.teamRoleScore - 0.5),
     },
     {
       key: "consistency",
       title: "Consistencia",
-      detail: `Bateu pelo menos 85% da media em ${hitCount} dos ultimos ${pick.recentValues.length} jogos analisados.`,
+      detail: `Bateu pelo menos 85% da média em ${hitCount} dos últimos ${pick.recentValues.length} jogos analisados.`,
       impact: pick.consistencyScore,
       direction: toSignalDirection(pick.consistencyScore - 0.55),
     },
@@ -642,9 +642,9 @@ const buildSupportSignals = (pick: RawCandidate): NbaOpportunitySignal[] => {
 
 const buildSummary = (pick: RawCandidate): string => {
   const marketLabel = MARKET_RULES[pick.market].label;
-  return `${pick.playerName} aparece como um dos nomes mais fortes do dia em ${marketLabel}, com projecao de ${roundToOne(
+  return `${pick.playerName} aparece como um dos nomes mais fortes do dia em ${marketLabel}, com projeção de ${roundToOne(
     pick.projection
-  )} e tendencia ${pick.trendLabel}.`;
+  )} e tendência ${pick.trendLabel}.`;
 };
 
 const buildSections = (

@@ -44,12 +44,12 @@ export default function ReportsTool() {
       );
       const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || "Erro ao carregar relatorio");
+        throw new Error(data.error || "Erro ao carregar relatório");
       }
       setSummary(data.data.summary);
       setItems(data.data.items || []);
     } catch (err: any) {
-      setError(err.message || "Erro ao carregar relatorio");
+      setError(err.message || "Erro ao carregar relatório");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,14 +102,14 @@ export default function ReportsTool() {
           <div>
             <div className="flex items-center gap-2 text-orange-400 text-sm font-semibold">
               <BarChart3 className="w-4 h-4" />
-              Relatorio de favoritismo
+              Relatório de favoritismo
             </div>
             <h2 className="text-2xl font-bold text-white mt-2">
-              Desempenho das previsoes pre-live
+              Desempenho das previsões pr?-live
             </h2>
             <p className="text-sm text-zinc-400 mt-2 max-w-xl">
               Acompanhe quantas vezes o favorito indicado venceu e use isso
-              como prova social para conversao.
+              como prova social para conversão.
             </p>
           </div>
           <button
@@ -163,9 +163,9 @@ export default function ReportsTool() {
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-white">Historico</h3>
+            <h3 className="text-lg font-bold text-white">Histórico</h3>
             <p className="text-xs text-zinc-400">
-              Ultimos {summary?.windowDays ?? 30} dias
+              últimos {summary?.windowDays ?? 30} dias
             </p>
           </div>
           <div className="text-xs text-zinc-500">
@@ -175,7 +175,7 @@ export default function ReportsTool() {
         <div className="divide-y divide-zinc-800">
           {items.length === 0 && (
             <div className="p-6 text-center text-zinc-500">
-              Nenhuma previsao registrada ainda.
+              Nenhuma previsão registrada ainda.
             </div>
           )}
           {items.map((item) => (
@@ -224,7 +224,7 @@ export default function ReportsTool() {
                     {item.predictedWinner}
                   </div>
                   <div className="text-xs text-zinc-500">
-                    Confianca: {Math.round(item.confidence)}%
+                    Confiança: {Math.round(item.confidence)}%
                   </div>
                 </div>
 

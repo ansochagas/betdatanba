@@ -623,7 +623,7 @@ const requestBetsApi = async <T>(
 ): Promise<BetsApiEnvelope<T>> => {
   const token = getToken();
   if (!token) {
-    throw new BetsApiError("BETSAPI_TOKEN nao configurada.", "config");
+    throw new BetsApiError("Configuração da consulta NBA indisponível.", "config");
   }
 
   const controller = new AbortController();
@@ -1134,7 +1134,7 @@ const enrichUpcomingRowsWithEventOdds = async (
 
   if (marketMap.size === 0) {
     warnings.push(
-      "BetsAPI nao retornou moneyline detalhada para os jogos ao vivo analisados."
+      "Dados detalhados de moneyline não foram retornados para os jogos ao vivo analisados."
     );
     return rows;
   }
@@ -1190,7 +1190,7 @@ const enrichUpcomingRowsWithPrematchOdds = async (
 
   if (marketMap.size === 0) {
     warnings.push(
-      "BetsAPI nao retornou moneyline pre-jogo detalhada para os jogos analisados."
+      "Dados detalhados de moneyline pré-jogo não foram retornados para os jogos analisados."
     );
     return rows;
   }
@@ -1246,7 +1246,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
   for (const section of rawSections) {
     const body = getRawBodySection(payloadRow, section.sectionKey);
     if (!body) {
-      warnings.push(`BetsAPI nao retornou bloco bruto de ${section.sectionKey} para este jogo.`);
+      warnings.push(`Alguns dados detalhados deste jogo não puderam ser carregados.`);
       continue;
     }
 
@@ -1275,7 +1275,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
 
   if (unresolvedPlayers.length > 0) {
     warnings.push(
-      `${unresolvedPlayers.length} jogador(es) vieram com time nao reconhecido e foram omitidos da visualizacao.`
+      `${unresolvedPlayers.length} jogador(es) vieram com time não reconhecido e foram omitidos da visualização.`
     );
   }
 
@@ -1287,7 +1287,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
     scheduledAt: options.scheduledAt ?? null,
     source: "feed",
     generatedAt: new Date().toISOString(),
-    note: "Medias recentes processadas a partir da leitura pre-jogo disponivel.",
+    note: "Médias recentes processadas a partir da leitura pré-jogo disponível.",
     warnings,
     teams: [
       {
@@ -1305,23 +1305,23 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
 };
 
 export const getBetsApiFriendlyMessage = (error: unknown): string => {
-  const fallback = "Nao foi possivel carregar os dados da NBA agora. Exibindo fallback seguro.";
+  const fallback = "Não foi possível carregar os dados da NBA agora. Exibindo fallback seguro.";
   if (!(error instanceof BetsApiError)) return fallback;
 
   if (error.kind === "quota") {
-    return "Alguns dados nao puderam ser carregados agora. Exibindo fallback seguro.";
+    return "Alguns dados não puderam ser carregados agora. Exibindo fallback seguro.";
   }
 
   if (error.kind === "plan") {
-    return "Alguns dados nao estao disponiveis no momento. Exibindo fallback seguro.";
+    return "Alguns dados não estáo disponíveis no momento. Exibindo fallback seguro.";
   }
 
   if (error.kind === "auth") {
-    return "Nao foi possivel validar a consulta agora. Exibindo fallback seguro.";
+    return "Não foi possível validar a consulta agora. Exibindo fallback seguro.";
   }
 
   if (error.kind === "config") {
-    return "Configuracao temporariamente indisponivel. Exibindo fallback seguro.";
+    return "Configuração temporariamente indisponível. Exibindo fallback seguro.";
   }
 
   return fallback;
@@ -1358,7 +1358,7 @@ export const fetchNbaMatchesFromBetsApi = async (days: number): Promise<NbaMatch
   }
 
   if (matches.length === 0) {
-    warnings.push("Nenhum jogo NBA retornado pela BetsAPI para o periodo solicitado.");
+    warnings.push("Nenhum jogo da NBA foi retornado para o período solicitado.");
   }
 
   return {

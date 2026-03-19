@@ -83,7 +83,7 @@ const makeApiRequest = async <T>(
   const baseUrl = process.env.API_BASKETBALL_BASE_URL || DEFAULT_BASE_URL;
 
   if (!apiKey) {
-    throw new ApiBasketballError("API_BASKETBALL_KEY nao configurada.", "config");
+    throw new ApiBasketballError("Configuração da consulta NBA indisponível.", "config");
   }
 
   const url = new URL(endpoint, baseUrl);
@@ -108,12 +108,12 @@ const makeApiRequest = async <T>(
   } catch (error: unknown) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new ApiBasketballError(
-        `Tempo limite ao consultar API Basketball (${timeoutMs}ms).`,
+        `Tempo limite ao consultar a NBA (${timeoutMs}ms).`,
         "request"
       );
     }
 
-    throw new ApiBasketballError("Falha de conexao com API Basketball.", "request");
+    throw new ApiBasketballError("Falha de conexão ao consultar a NBA.", "request");
   } finally {
     clearTimeout(timeoutId);
   }
@@ -122,7 +122,7 @@ const makeApiRequest = async <T>(
   try {
     payload = (await response.json()) as ApiBasketballEnvelope<T>;
   } catch {
-    throw new ApiBasketballError("Resposta invalida da API Basketball.", "request");
+    throw new ApiBasketballError("Resposta inválida da consulta NBA.", "request");
   }
 
   const apiErrors = normalizeApiErrors(payload.errors);
@@ -217,19 +217,19 @@ const mapGameStatus = (statusShort?: string, statusLong?: string): string => {
 };
 
 export const getApiBasketballFriendlyMessage = (error: unknown): string => {
-  const fallback = "Nao foi possivel carregar os dados da NBA agora. Exibindo fallback seguro.";
+  const fallback = "Não foi possível carregar os dados da NBA agora. Exibindo fallback seguro.";
   if (!(error instanceof ApiBasketballError)) return fallback;
 
   if (error.kind === "quota") {
-    return "Alguns dados nao puderam ser carregados agora. Exibindo fallback seguro.";
+    return "Alguns dados não puderam ser carregados agora. Exibindo fallback seguro.";
   }
 
   if (error.kind === "plan") {
-    return "Alguns dados nao estao disponiveis no momento. Exibindo fallback seguro.";
+    return "Alguns dados não estáo disponíveis no momento. Exibindo fallback seguro.";
   }
 
   if (error.kind === "config") {
-    return "Configuracao temporariamente indisponivel. Exibindo fallback seguro.";
+    return "Configuração temporariamente indisponível. Exibindo fallback seguro.";
   }
 
   return fallback;

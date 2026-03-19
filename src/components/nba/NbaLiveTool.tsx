@@ -259,7 +259,7 @@ const buildLiveRead = (game: NbaLiveGame): LiveRead => {
       level: "alta",
       title: "Favorito em dificuldade",
       market: "Moneyline / Spread",
-      summary: "O favorito do pre-jogo esta atras no placar com margem relevante.",
+      summary: "O favorito do pré-jogo está atrás no placar com margem relevante.",
       bullets,
     };
   }
@@ -267,9 +267,9 @@ const buildLiveRead = (game: NbaLiveGame): LiveRead => {
   if (totalDelta !== null && totalDelta >= 10) {
     return {
       level: "alta",
-      title: "Ritmo acima do pre-jogo",
+      title: "Ritmo acima do pré-jogo",
       market: "Total",
-      summary: `O jogo esta ${getPaceLabel(totalDelta)} para o baseline pre-jogo.`,
+      summary: `O jogo está ${getPaceLabel(totalDelta)} para o baseline pré-jogo.`,
       bullets,
     };
   }
@@ -277,9 +277,9 @@ const buildLiveRead = (game: NbaLiveGame): LiveRead => {
   if (totalDelta !== null && totalDelta <= -10) {
     return {
       level: "alta",
-      title: "Pontuacao abaixo do esperado",
+      title: "Pontuação abaixo do esperado",
       market: "Total",
-      summary: `O jogo esta ${getPaceLabel(totalDelta)} para o baseline pre-jogo.`,
+      summary: `O jogo está ${getPaceLabel(totalDelta)} para o baseline pré-jogo.`,
       bullets,
     };
   }
@@ -287,9 +287,9 @@ const buildLiveRead = (game: NbaLiveGame): LiveRead => {
   if (quarter !== null && quarter >= 3 && leader !== "draw" && margin >= 10) {
     return {
       level: "media",
-      title: "Controle claro do lider",
+      title: "Controle claro do líder",
       market: "Moneyline / Spread",
-      summary: "Lideranca consolidada no segundo tempo.",
+      summary: "Liderança consolidada no segundo tempo.",
       bullets,
     };
   }
@@ -364,12 +364,12 @@ export default function NbaLiveTool() {
       const payload = (await response.json()) as LiveResponse;
 
       if (!payload.success) {
-        throw new Error(payload.error || "Falha ao consultar monitoramento live.");
+        throw new Error(payload.error || "Falha ao consultar o monitoramento ao vivo.");
       }
 
       setGames(Array.isArray(payload.data) ? payload.data : []);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Erro ao carregar live.");
+      setError(loadError instanceof Error ? loadError.message : "Erro ao carregar o monitoramento ao vivo.");
       setGames([]);
     } finally {
       setLoading(false);
@@ -454,7 +454,7 @@ export default function NbaLiveTool() {
                       Ao vivo
                     </span>
                     <span className="rounded-full border border-zinc-700 bg-zinc-900/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-200">
-                      {game.period || "Periodo --"}
+                      {game.period || "Período --"}
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900/70 px-3 py-1 text-xs font-semibold text-zinc-100">
                       <Timer className="h-3.5 w-3.5" />
@@ -497,7 +497,7 @@ export default function NbaLiveTool() {
                           {formatNumber(game.score.home, 0)} x {formatNumber(game.score.away, 0)}
                         </p>
                         <div className="mt-3 flex items-center justify-center gap-2 text-xs uppercase tracking-[0.18em] text-zinc-400">
-                          <span>{game.period || "Periodo --"}</span>
+                          <span>{game.period || "Período --"}</span>
                           <span className="text-zinc-600">•</span>
                           <span>{formatClock(game)}</span>
                         </div>
@@ -604,7 +604,7 @@ export default function NbaLiveTool() {
                   {game.quarterScores.length > 0 ? (
                     <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
                       <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                        Parcial por periodo
+                        Parcial por período
                       </p>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                         {game.quarterScores.map((quarter) => (
@@ -657,7 +657,7 @@ export default function NbaLiveTool() {
                               </p>
                             ) : (
                               <p className="text-sm text-zinc-500">
-                                Snapshot de temporada indisponivel
+                                Snapshot de temporada indisponível
                               </p>
                             )}
                           </div>
@@ -668,10 +668,10 @@ export default function NbaLiveTool() {
                           {miniStatCell("Rank", team.snapshot?.rank ? `#${team.snapshot.rank}` : "--")}
                           {miniStatCell("ML pre-jogo", displayOdd(team.pregameOdd))}
                           {miniStatCell("ML live", displayOdd(team.liveOdd))}
-                          {miniStatCell("Media PF", formatNumber(team.snapshot?.averagePointsFor))}
-                          {miniStatCell("Media PA", formatNumber(team.snapshot?.averagePointsAgainst))}
+                          {miniStatCell("Média PF", formatNumber(team.snapshot?.averagePointsFor))}
+                          {miniStatCell("Média PA", formatNumber(team.snapshot?.averagePointsAgainst))}
                           {miniStatCell(
-                            "Saldo medio",
+                            "Saldo médio",
                             formatNumber(team.snapshot?.pointDifferential)
                           )}
                         </div>

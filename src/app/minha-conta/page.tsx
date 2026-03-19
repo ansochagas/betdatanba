@@ -195,7 +195,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordResult("As senhas nao conferem");
+      setPasswordResult("As senhas não conferem");
       return;
     }
 
@@ -215,7 +215,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
       const data = await response.json();
       if (data.success) {
         setPasswordResult(
-          "Senha alterada. Voce sera desconectado para entrar novamente."
+          "Senha alterada. Voc? será desconectado para entrar novamente."
         );
         setPasswordForm({
           currentPassword: "",
@@ -476,7 +476,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
                         }))
                       }
                       className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="Minimo 8 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                     />
                   </div>
                   <div>
@@ -520,7 +520,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
                 </button>
 
                 <p className="text-xs text-zinc-400">
-                  Por seguranca, voce sera desconectado apos alterar a senha.
+                  Por segurança, você será desconectado após alterar a senha.
                 </p>
               </div>
             </div>

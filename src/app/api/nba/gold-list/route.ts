@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
     const teamStats = await loadTeamStatsForGoldList(warnings);
 
     if (!todayMatches.length) {
-      warnings.push("Nenhum jogo da NBA foi encontrado para hoje no horario de Brasilia.");
+      warnings.push("Nenhum jogo da NBA foi encontrado para hoje no horário de Brasília.");
     }
 
     const analyses = await Promise.all(

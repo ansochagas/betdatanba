@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     if (!session?.user || !(session.user as any)?.id) {
       return NextResponse.json(
-        { success: false, error: "Nao autenticado" },
+        { success: false, error: "Não autenticado" },
         { status: 401 }
       );
     }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: "Usuario nao encontrado" },
+        { success: false, error: "Usuário não encontrado" },
         { status: 404 }
       );
     }

@@ -16,7 +16,7 @@ const normalizeSearch = (value: string): string => {
 const toTeamStatsWarning = (message: string): string => {
   return message.replace(
     "os jogos da NBA",
-    "as estatisticas da temporada da NBA"
+    "as estatísticas da temporada da NBA"
   );
 };
 
@@ -36,7 +36,7 @@ const buildEmptyFallback = (
       generatedAt: new Date().toISOString(),
       warnings: [
         warning,
-        "Pre-jogo exibido sem estatisticas completas da temporada no momento.",
+        "Pr?-jogo exibido sem estatísticas completas da temporada no momento.",
       ],
     },
   };

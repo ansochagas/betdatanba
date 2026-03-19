@@ -52,5 +52,5 @@ export const fetchNbaPlayerAnalysisFromProvider = async (
     return fetchNbaPlayerAnalysisFromBetsApi(matchId, options);
   }
 
-  throw new Error("Analise de jogadores disponivel apenas com BetsAPI no momento.");
+  throw new Error("Análise de jogadores disponível apenas para o provedor configurado no momento.");
 };

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
   const subTotalPages = Math.max(1, Math.ceil(subTotal / subPageSize));
 
   useEffect(() => {
-    // Verificar se usuÃ¡rio Ã© admin
+    // Verificar se usuário é admin
     if (session?.user?.email && !isAdmin(session.user.email)) {
       window.location.href = "/dashboard";
       return;
@@ -100,10 +100,10 @@ export default function AdminDashboard() {
     const adminEmails = [
       "admin@csgoscout.com",
       "andersonchagas45@gmail.com", // Conta admin criada
-      // Adicionar mais emails conforme necessÃ¡rio
+      // Adicionar mais emails conforme necessário
     ];
 
-    // Verificar se Ã© admin
+    // Verificar se é admin
     return adminEmails.includes(email);
   };
 
@@ -118,7 +118,7 @@ export default function AdminDashboard() {
         }
       }
     } catch (error) {
-      console.error("Erro ao buscar estatÃ­sticas:", error);
+      console.error("Erro ao buscar estatísticas:", error);
     } finally {
       setLoading(false);
     }
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
 
   const handleBroadcast = async () => {
     if (!broadcastMessage.title || !broadcastMessage.message) {
-      alert("Preencha tÃ­tulo e mensagem");
+      alert("Preencha título e mensagem");
       return;
     }
 
@@ -146,14 +146,14 @@ export default function AdminDashboard() {
 
       if (data.success) {
         setBroadcastResult(
-          `âœ… Mensagem enviada para ${data.sentCount} usuÃ¡rios!`
+          `Mensagem enviada para ${data.sentCount} usuários!`
         );
         setBroadcastMessage({ title: "", message: "", target: "all" });
       } else {
-        setBroadcastResult(`âŒ Erro: ${data.error}`);
+        setBroadcastResult(`Erro: ${data.error}`);
       }
     } catch (error) {
-      setBroadcastResult("âŒ Erro ao enviar mensagem");
+      setBroadcastResult("Erro ao enviar mensagem");
     } finally {
       setSendingBroadcast(false);
     }
@@ -163,12 +163,12 @@ export default function AdminDashboard() {
     const email = telegramUnlinkEmail.trim();
 
     if (!email) {
-      alert("Informe o email do usuÃ‡Â­rio");
+      alert("Informe o email do usuário");
       return;
     }
 
     const confirmed = window.confirm(
-      `Desvincular Telegram do usuÃ‡Â­rio ${email}?\n\nEssa aÃ‡ÃµÃ‡Å“o remove o vÃ‡Ã°nculo e o usuÃ‡Â­rio precisarÃ‡Â­ vincular novamente.`
+      `Desvincular Telegram do usuário ${email}?\n\nEssa ação remove o vínculo e o usuário precisará vincular novamente.`
     );
 
     if (!confirmed) return;
@@ -189,15 +189,15 @@ export default function AdminDashboard() {
 
       if (data.success) {
         setTelegramUnlinkResult(
-          `Æ’o. Telegram desvinculado: ${data.data?.email || email}`
+          `Telegram desvinculado: ${data.data?.email || email}`
         );
         setTelegramUnlinkEmail("");
         fetchAdminStats();
       } else {
-        setTelegramUnlinkResult(`Æ’?O Erro: ${data.error || "Erro"}`);
+        setTelegramUnlinkResult(`Erro: ${data.error || "Erro"}`);
       }
     } catch (error) {
-      setTelegramUnlinkResult("Æ’?O Erro ao desvincular Telegram");
+      setTelegramUnlinkResult("Erro ao desvincular Telegram");
     } finally {
       setTelegramUnlinking(false);
     }
@@ -218,7 +218,7 @@ export default function AdminDashboard() {
         }
       }
     } catch (error) {
-      console.error("Erro na verificaÃ§Ã£o de integridade:", error);
+      console.error("Erro na verificação de integridade:", error);
     } finally {
       setCheckingIntegrity(false);
     }
@@ -257,14 +257,14 @@ export default function AdminDashboard() {
       const data = await response.json();
 
       if (data.success) {
-        setAlertResult(`âœ… ${data.result.sent} alertas enviados com sucesso!`);
+        setAlertResult(`${data.result.sent} alertas enviados com sucesso!`);
         // Recarregar dados
         handleLoadAlerts();
       } else {
-        setAlertResult(`âŒ Erro: ${data.error}`);
+        setAlertResult(`Erro: ${data.error}`);
       }
     } catch (error) {
-      setAlertResult("âŒ Erro ao enviar alertas");
+      setAlertResult("Erro ao enviar alertas");
     } finally {
       setSendingAlerts(false);
     }
@@ -286,14 +286,14 @@ export default function AdminDashboard() {
       const data = await response.json();
 
       if (data.success) {
-        setGameAlertResult(`âœ… ${data.message}`);
+        setGameAlertResult(`${data.message}`);
         // Recarregar status
         handleLoadGameAlertsStatus();
       } else {
-        setGameAlertResult(`âŒ Erro: ${data.error}`);
+        setGameAlertResult(`Erro: ${data.error}`);
       }
     } catch (error) {
-      setGameAlertResult("âŒ Erro ao verificar alertas de jogos");
+      setGameAlertResult("Erro ao verificar alertas de jogos");
     } finally {
       setCheckingGameAlerts(false);
     }
@@ -402,12 +402,12 @@ export default function AdminDashboard() {
       return;
     }
     if (hasCustomPassword && customPassword !== confirmPassword) {
-      setResetResult("As senhas nao conferem");
+      setResetResult("As senhas não conferem");
       return;
     }
     const confirmText = hasCustomPassword
       ? "Definir senha manual para " + email + "?"
-      : "Gerar senha temporaria para " + email + "?";
+      : "Gerar senha temporária para " + email + "?";
     const confirmed = window.confirm(confirmText);
     if (!confirmed) return;
     try {
@@ -425,7 +425,7 @@ export default function AdminDashboard() {
       if (data.success) {
         const label = data.customPasswordUsed
           ? "Senha definida"
-          : "Senha temporaria";
+          : "Senha temporária";
         setResetResult(label + " para " + email + ": " + data.tempPassword);
         setResetPassword("");
         setResetPasswordConfirm("");
@@ -446,7 +446,7 @@ export default function AdminDashboard() {
           <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4">Acesso Negado</h1>
           <p className="text-zinc-400 mb-8">
-            VocÃª nÃ£o tem permissÃ£o para acessar esta pÃ¡gina.
+            Você não tem permissão para acessar esta página.
           </p>
           <button
             onClick={() => (window.location.href = "/dashboard")}
@@ -476,7 +476,7 @@ export default function AdminDashboard() {
             <div className="text-2xl font-bold bg-gradient-to-r from-red-500 to-orange-500 bg-clip-text text-transparent">
               ADMIN PANEL
             </div>
-            <span className="text-zinc-400">â€¢</span>
+            <span className="text-zinc-400"></span>
             <span className="text-zinc-400">Dashboard Administrativo</span>
           </div>
 
@@ -496,9 +496,9 @@ export default function AdminDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* MÃ©tricas Principais */}
+          {/* Métricas Principais */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Cards de EstatÃ­sticas */}
+            {/* Cards de Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-xl p-6">
                 <div className="flex items-center gap-4">
@@ -507,7 +507,7 @@ export default function AdminDashboard() {
                     <p className="text-2xl font-bold">
                       {stats?.totalUsers || 0}
                     </p>
-                    <p className="text-zinc-400 text-sm">Total de UsuÃ¡rios</p>
+                    <p className="text-zinc-400 text-sm">Total de Usuários</p>
                   </div>
                 </div>
               </div>
@@ -549,7 +549,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Receita e Novos UsuÃ¡rios */}
+            {/* Receita e Novos Usuários */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-xl p-6">
                 <div className="flex items-center gap-4 mb-4">
@@ -561,7 +561,7 @@ export default function AdminDashboard() {
                 </p>
                 <p className="text-zinc-400 text-sm mt-2">
                   <TrendingUp size={14} className="inline mr-1" />
-                  +12% em relaÃ§Ã£o ao mÃªs passado
+                  +12% em relação ao mês passado
                 </p>
               </div>
 
@@ -574,12 +574,12 @@ export default function AdminDashboard() {
                   {stats?.recentSignups || 0}
                 </p>
                 <p className="text-zinc-400 text-sm mt-2">
-                  Nos Ãºltimos 30 dias
+                  Nos últimos 30 dias
                 </p>
               </div>
             </div>
 
-            {/* VerificaÃ§Ã£o de Integridade */}
+            {/* Verificação de Integridade */}
             <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -589,7 +589,7 @@ export default function AdminDashboard() {
                       Integridade das Subscriptions
                     </h3>
                     <p className="text-zinc-400 text-sm">
-                      Verifique a saÃºde dos planos dos usuÃ¡rios
+                      Verifique a saúde dos planos dos usuários
                     </p>
                   </div>
                 </div>
@@ -625,13 +625,13 @@ export default function AdminDashboard() {
                       <p className="text-2xl font-bold text-green-400">
                         {integrityCheck.validSubscriptions}
                       </p>
-                      <p className="text-xs text-zinc-400">VÃ¡lidas</p>
+                      <p className="text-xs text-zinc-400">Válidas</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-red-400">
                         {integrityCheck.invalidSubscriptions}
                       </p>
-                      <p className="text-xs text-zinc-400">InvÃ¡lidas</p>
+                      <p className="text-xs text-zinc-400">Inválidas</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-orange-400">
@@ -644,7 +644,7 @@ export default function AdminDashboard() {
                   {integrityCheck.issues.length > 0 && (
                     <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
                       <h4 className="text-red-400 font-semibold mb-2">
-                        âš ï¸ Problemas Encontrados ({integrityCheck.issues.length}
+                        ️ Problemas encontrados ({integrityCheck.issues.length}
                         )
                       </h4>
                       <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -652,7 +652,7 @@ export default function AdminDashboard() {
                           .slice(0, 5)
                           .map((issue: string, index: number) => (
                             <p key={index} className="text-red-300 text-sm">
-                              â€¢ {issue}
+                               {issue}
                             </p>
                           ))}
                         {integrityCheck.issues.length > 5 && (
@@ -668,7 +668,7 @@ export default function AdminDashboard() {
                   {integrityCheck.issues.length === 0 && (
                     <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4">
                       <p className="text-green-400 text-sm">
-                        âœ… Todas as subscriptions estÃ£o Ã­ntegras!
+                         Todas as assinaturas estão íntegras!
                       </p>
                     </div>
                   )}
@@ -676,17 +676,17 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Alertas de ExpiraÃ§Ã£o */}
+            {/* Alertas de Expiração */}
             <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <AlertTriangle className="text-red-400" size={24} />
                   <div>
                     <h3 className="text-lg font-semibold">
-                      Alertas de ExpiraÃ§Ã£o
+                      Alertas de Expiração
                     </h3>
                     <p className="text-zinc-400 text-sm">
-                      UsuÃ¡rios prÃ³ximos da expiraÃ§Ã£o do plano
+                      Usuários próximos da expiração do plano
                     </p>
                   </div>
                 </div>
@@ -731,7 +731,7 @@ export default function AdminDashboard() {
               {alertResult && (
                 <div
                   className={`mb-4 p-3 rounded-lg text-sm ${
-                    alertResult.includes("âœ…")
+                    alertResult.includes("")
                       ? "bg-green-500/20 border border-green-500/50 text-green-400"
                       : "bg-red-500/20 border border-red-500/50 text-red-400"
                   }`}
@@ -749,14 +749,14 @@ export default function AdminDashboard() {
                         {alertsData.summary?.critical || 0}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        CrÃ­ticos (â‰¤3 dias)
+                        Críticos (3 dias)
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-orange-400">
                         {alertsData.summary?.warning || 0}
                       </p>
-                      <p className="text-xs text-zinc-400">Avisos (â‰¤7 dias)</p>
+                      <p className="text-xs text-zinc-400">Avisos (7 dias)</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-gray-400">
@@ -776,7 +776,7 @@ export default function AdminDashboard() {
                   {alertsData.alerts?.length > 0 ? (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-zinc-300">
-                        UsuÃ¡rios que precisam de alertas:
+                        Usuários que precisam de alertas:
                       </h4>
                       {alertsData.alerts
                         .slice(0, 10)
@@ -816,17 +816,17 @@ export default function AdminDashboard() {
                         ))}
                       {alertsData.alerts.length > 10 && (
                         <p className="text-xs text-zinc-400 text-center">
-                          ... e mais {alertsData.alerts.length - 10} usuÃ¡rios
+                          ... e mais {alertsData.alerts.length - 10} usuários
                         </p>
                       )}
                     </div>
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-zinc-400">
-                        ðŸŽ‰ Nenhum alerta necessÃ¡rio no momento!
+                         Nenhum alerta necessário no momento!
                       </p>
                       <p className="text-xs text-zinc-500 mt-1">
-                        Todos os usuÃ¡rios estÃ£o com planos em dia
+                        Todos os usuários estão com planos em dia
                       </p>
                     </div>
                   )}
@@ -842,7 +842,7 @@ export default function AdminDashboard() {
                   <div>
                     <h3 className="text-lg font-semibold">Alertas de Jogos</h3>
                     <p className="text-zinc-400 text-sm">
-                      NotificaÃ§Ãµes automÃ¡ticas de jogos prÃ³ximos
+                      Notificações automáticas de jogos próximos
                     </p>
                   </div>
                 </div>
@@ -868,7 +868,7 @@ export default function AdminDashboard() {
               {gameAlertResult && (
                 <div
                   className={`mb-4 p-3 rounded-lg text-sm ${
-                    gameAlertResult.includes("âœ…")
+                    gameAlertResult.includes("")
                       ? "bg-green-500/20 border border-green-500/50 text-green-400"
                       : "bg-red-500/20 border border-red-500/50 text-red-400"
                   }`}
@@ -898,7 +898,7 @@ export default function AdminDashboard() {
                     <div className="bg-zinc-800/50 rounded-lg p-4 text-center">
                       <Clock size={20} className="mx-auto mb-2 text-blue-400" />
                       <p className="text-sm text-zinc-400">
-                        Ãšltima VerificaÃ§Ã£o
+                        ltima Verificação
                       </p>
                       <p className="text-white font-medium">
                         {new Date(
@@ -919,11 +919,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* InformaÃ§Ãµes do Sistema */}
+                  {/* Informações do Sistema */}
                   <div className="bg-zinc-800/50 rounded-lg p-4">
                     <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                       <Info size={16} className="text-blue-400" />
-                      InformaÃ§Ãµes do Sistema
+                      Informações do Sistema
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
@@ -937,7 +937,7 @@ export default function AdminDashboard() {
                               : "text-red-400"
                           }`}
                         >
-                          {gameAlertsStatus.alertsEnabled ? "Sim" : "NÃ£o"}
+                          {gameAlertsStatus.alertsEnabled ? "Sim" : "Não"}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -956,26 +956,26 @@ export default function AdminDashboard() {
                       Como Funciona
                     </h4>
                     <ul className="text-sm text-zinc-300 space-y-1">
-                      <li>â€¢ âœ… Verifica jogos a cada 1 minuto</li>
-                      <li>â€¢ ðŸŽ¯ Alerta 10min, 5min e no inÃ­cio do jogo</li>
+                      <li>  Verifica jogos a cada 1 minuto</li>
+                      <li>  Alerta 10min, 5min e no início do jogo</li>
                       <li>
-                        â€¢ ðŸ“± Envia via Telegram para usuÃ¡rios configurados
+                          Envia via Telegram para usuários configurados
                       </li>
-                      <li>â€¢ ðŸš« Evita alertas duplicados (1h de bloqueio)</li>
-                      <li>â€¢ âš¡ Funciona 24/7 em background</li>
+                      <li>  Evita alertas duplicados (1h de bloqueio)</li>
+                      <li>  Funciona 24/7 em background</li>
                     </ul>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Gestao de Usuarios */}
+            {/* Gestão de Usuários */}
             <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <Shield className="text-green-400" size={24} />
                   <h3 className="text-lg font-semibold">
-                    Gestao de Usuarios (Admin)
+                    Gestão de Usuários (Admin)
                   </h3>
                 </div>
                 <button
@@ -1055,7 +1055,7 @@ export default function AdminDashboard() {
                         <th className="p-3">Usuario</th>
                         <th className="p-3">Contato</th>
                         <th className="p-3">Plano / Status</th>
-                        <th className="p-3">Periodo</th>
+                        <th className="p-3">Período</th>
                         <th className="p-3">Criado</th>
                         <th className="p-3">Acoes</th>
                       </tr>
@@ -1101,7 +1101,7 @@ export default function AdminDashboard() {
                             <td className="p-3 align-top text-zinc-300">
                               <div>{u.phone || "Sem telefone"}</div>
                               <div className="text-xs text-zinc-400">
-                                Telegram: {u.telegramId || "Nao vinculado"}
+                                Telegram: {u.telegramId || "Não vinculado"}
                               </div>
                             </td>
                             <td className="p-3 align-top text-zinc-300">
@@ -1215,7 +1215,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-300 mb-1">
-                    Fim do perÃ­odo
+                    Fim do período
                   </label>
                   <input
                     type="date"
@@ -1237,7 +1237,7 @@ export default function AdminDashboard() {
                   disabled={updatingSub || !subForm.email}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {updatingSub ? "Salvando..." : "Salvar alteraÃ§Ãµes"}
+                  {updatingSub ? "Salvando..." : "Salvar alterações"}
                 </button>
               </div>
             </div>
@@ -1251,7 +1251,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                 <div className="md:col-span-2">
                   <label className="block text-sm text-zinc-300 mb-1">
-                    Email do usuÃ¡rio
+                    Email do usuário
                   </label>
                   <input
                     type="email"
@@ -1270,7 +1270,7 @@ export default function AdminDashboard() {
                     ? "Salvando..."
                     : resetPassword.trim()
                     ? "Definir senha"
-                    : "Gerar senha temporaria"}
+                    : "Gerar senha temporária"}
                 </button>
               </div>
               <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1299,7 +1299,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div className="text-xs text-zinc-500 flex items-end">
-                  Se deixar vazio, o sistema gera uma senha temporaria.
+                  Se deixar vazio, o sistema gera uma senha temporária.
                 </div>
               </div>
               {resetResult && (
@@ -1308,7 +1308,7 @@ export default function AdminDashboard() {
                 </div>
               )}
               <p className="text-xs text-zinc-500 mt-2">
-                A senha definida (ou temporaria) aparece aqui para voce enviar ao cliente. Recomende que ele altere apos o login.
+                A senha definida (ou temporária) aparece aqui para você enviar ao cliente. Recomende que ele altere após o login.
               </p>
             </div>
           </div>
@@ -1324,7 +1324,7 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    TÃ­tulo da Mensagem
+                    Título da Mensagem
                   </label>
                   <input
                     type="text"
@@ -1336,7 +1336,7 @@ export default function AdminDashboard() {
                       }))
                     }
                     className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none"
-                    placeholder="Ex: ManutenÃ§Ã£o Programada"
+                    placeholder="Ex: Manutenção Programada"
                   />
                 </div>
 
@@ -1360,7 +1360,7 @@ export default function AdminDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    PÃºblico Alvo
+                    Público Alvo
                   </label>
                   <select
                     value={broadcastMessage.target}
@@ -1372,16 +1372,16 @@ export default function AdminDashboard() {
                     }
                     className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:border-orange-500 focus:outline-none"
                   >
-                    <option value="all">Todos os usuÃ¡rios vinculados</option>
+                    <option value="all">Todos os usuários vinculados</option>
                     <option value="active">Apenas assinantes ativos</option>
-                    <option value="trial">Apenas usuÃ¡rios em trial</option>
+                    <option value="trial">Apenas usuários em trial</option>
                   </select>
                 </div>
 
                 {broadcastResult && (
                   <div
                     className={`p-3 rounded-lg text-sm ${
-                      broadcastResult.includes("âœ…")
+                      broadcastResult.includes("")
                         ? "bg-green-500/20 border border-green-500/50 text-green-400"
                         : "bg-red-500/20 border border-red-500/50 text-red-400"
                     }`}
@@ -1414,14 +1414,14 @@ export default function AdminDashboard() {
               </div>
 
               <div className="mt-6 pt-6 border-t border-zinc-800">
-                <h3 className="text-sm font-medium mb-3">InformaÃ§Ãµes</h3>
+                <h3 className="text-sm font-medium mb-3">Informações</h3>
                 <div className="text-xs text-zinc-400 space-y-2">
                   <p>
-                    â€¢ Apenas usuÃ¡rios com Telegram vinculado recebem as
+                     Apenas usuários com Telegram vinculado recebem as
                     mensagens
                   </p>
-                  <p>â€¢ Mensagens sÃ£o enviadas em lote para evitar sobrecarga</p>
-                  <p>â€¢ Use com responsabilidade</p>
+                  <p> Mensagens são enviadas em lote para evitar sobrecarga</p>
+                  <p> Use com responsabilidade</p>
                 </div>
               </div>
 
@@ -1436,13 +1436,13 @@ export default function AdminDashboard() {
                     value={telegramUnlinkEmail}
                     onChange={(e) => setTelegramUnlinkEmail(e.target.value)}
                     className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none"
-                    placeholder="Email do usuÃ¡rio (ex: cliente@email.com)"
+                    placeholder="Email do usuário (ex: cliente@email.com)"
                   />
 
                   {telegramUnlinkResult && (
                     <div
                       className={`p-3 rounded-lg text-sm ${
-                        telegramUnlinkResult.includes("Æ’o.")
+                        telegramUnlinkResult.includes("o.")
                           ? "bg-green-500/20 border border-green-500/50 text-green-400"
                           : "bg-red-500/20 border border-red-500/50 text-red-400"
                       }`}
@@ -1462,8 +1462,8 @@ export default function AdminDashboard() {
                   </button>
 
                   <p className="text-xs text-zinc-400">
-                    Remove o vÃ­nculo atual (telegramId/config/cÃ³digos) para o
-                    usuÃ¡rio poder vincular novamente.
+                    Remove o vínculo atual (telegramId/config/códigos) para o
+                    usuário poder vincular novamente.
                   </p>
                 </div>
               </div>

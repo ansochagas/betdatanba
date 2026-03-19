@@ -27,13 +27,13 @@ type TeamSeasonStats = {
   teamName: string;
   logoUrl: string;
   record: { wins: number; losses: number };
-  homeRecord: { wins: number; losses: number };
-  awayRecord: { wins: number; losses: number };
+  homeCampanha: { wins: number; losses: number };
+  awayCampanha: { wins: number; losses: number };
   winRate: number;
   averagePointsFor: number;
   averagePointsAgainst: number;
   pointDifferential: number;
-  last10Record: { wins: number; losses: number };
+  last10Campanha: { wins: number; losses: number };
   last10Games: Array<{
     playedAt: string;
     opponentTeam: string;
@@ -96,7 +96,7 @@ const formatDaySectionLabel = (dayKey: string): string => {
   const tomorrowKey = formatBrtDayKey(tomorrow.toISOString());
 
   if (dayKey === todayKey) return "Hoje";
-  if (dayKey === tomorrowKey) return "Amanha";
+  if (dayKey === tomorrowKey) return "Amanh?";
 
   const [year, month, day] = dayKey.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -158,7 +158,7 @@ const buildPreGameInsight = (
 
   const winRateEdge = homeStats.winRate - awayStats.winRate;
   const formEdge =
-    homeStats.last10Record.wins / 10 - awayStats.last10Record.wins / 10;
+    homeStats.last10Campanha.wins / 10 - awayStats.last10Campanha.wins / 10;
   const restEdge = ((homeStats.restDays ?? 1) - (awayStats.restDays ?? 1)) / 3;
 
   const projectedSpread = Number(
@@ -215,7 +215,7 @@ export default function NbaAnalysisTool() {
       } else {
         setTeamStats(
           emptyTeamStatsFallback(
-            statsPayload?.error || "Estatisticas da temporada indisponiveis no momento."
+            statsPayload?.error || "Estatísticas da temporada indisponíveis no momento."
           )
         );
       }
@@ -277,7 +277,7 @@ export default function NbaAnalysisTool() {
   if (loading) {
     return (
       <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-6 text-center text-zinc-300 sm:p-8">
-        Carregando jogos e estatisticas reais da temporada...
+        Carregando jogos e estatísticas reais da temporada...
       </div>
     );
   }
@@ -285,7 +285,7 @@ export default function NbaAnalysisTool() {
   if (error) {
     return (
       <div className="rounded-xl border border-red-500/50 bg-red-900/20 p-6 text-red-200">
-        <p className="font-semibold">Erro ao carregar modulo pre-jogo NBA</p>
+        <p className="font-semibold">Erro ao carregar módulo pré-jogo NBA</p>
         <p className="mt-2 text-sm">{error}</p>
         <button
           onClick={fetchData}
@@ -301,11 +301,11 @@ export default function NbaAnalysisTool() {
     <div className="space-y-5">
       <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-5">
         <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
-          AGENDA NBA - HOJE E AMANHA
+          AGENDA NBA - HOJE E AMANH?
         </h2>
         <p className="mt-2 text-sm text-zinc-400">
-          O modulo pre-jogo agora considera por padrao a agenda do dia atual e
-          tambem os jogos do proximo dia no horario de Brasilia.
+          O módulo pré-jogo agora considera por padrão a agenda do dia atual e
+          também os jogos do próximo dia no horário de Brasília.
         </p>
       </div>
 
@@ -341,7 +341,7 @@ export default function NbaAnalysisTool() {
                       </h3>
                     </div>
                     <div className="text-left sm:text-right">
-                      <p className="text-[11px] uppercase tracking-wide text-zinc-500">Horario BRT</p>
+                      <p className="text-[11px] uppercase tracking-wide text-zinc-500">Horário BRT</p>
                       <p className="text-base font-semibold text-zinc-100">{formatBrtDate(match.scheduledAt)}</p>
                     </div>
                   </div>
@@ -355,7 +355,7 @@ export default function NbaAnalysisTool() {
                         rel="noreferrer"
                         className="inline-flex w-full items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-100 transition hover:border-orange-300/50 hover:bg-orange-500/20 sm:w-auto"
                       >
-                        Analise dos jogadores
+                        Análise dos jogadores
                       </Link>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -368,13 +368,13 @@ export default function NbaAnalysisTool() {
                         <p className="mt-1 text-lg font-bold text-zinc-100">{displayOdd(match.odds.moneyline.away)}</p>
                       </div>
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Spread Projetado</p>
+                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Spread projetado</p>
                         <p className="mt-1 text-lg font-bold text-zinc-100">
                           {insight.projectedSpread !== null ? insight.projectedSpread : "--"}
                         </p>
                       </div>
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Total Projetado</p>
+                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Total projetado</p>
                         <p className="mt-1 text-lg font-bold text-zinc-100">
                           {insight.projectedTotal !== null ? insight.projectedTotal : "--"}
                         </p>
@@ -418,7 +418,7 @@ export default function NbaAnalysisTool() {
                         {team.stats ? (
                           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Classificacao atual</p>
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Classificação atual</p>
                               <p className="mt-1 text-lg font-bold text-zinc-100">#{team.stats.rank.overall}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
@@ -426,15 +426,15 @@ export default function NbaAnalysisTool() {
                               <p className="mt-1 text-lg font-bold text-zinc-100">{formatPct(team.stats.winRate)}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Media pontos ofensivos</p>
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Média de pontos pr?</p>
                               <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsFor.toFixed(1)}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Media pontos tomados</p>
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Média de pontos contra</p>
                               <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsAgainst.toFixed(1)}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Record</p>
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Campanha</p>
                               <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.record.wins}-{team.stats.record.losses}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
@@ -443,20 +443,20 @@ export default function NbaAnalysisTool() {
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
                               <p className="text-[11px] uppercase tracking-wide text-zinc-500">Casa</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.homeRecord.wins}-{team.stats.homeRecord.losses}</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.homeCampanha.wins}-{team.stats.homeCampanha.losses}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
                               <p className="text-[11px] uppercase tracking-wide text-zinc-500">Fora</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.awayRecord.wins}-{team.stats.awayRecord.losses}</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.awayCampanha.wins}-{team.stats.awayCampanha.losses}</p>
                             </div>
                             <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Ultimos 10</p>
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">últimos 10</p>
                               <p className="mt-1 text-base font-semibold text-zinc-100">
-                                {team.stats.last10Record.wins}-{team.stats.last10Record.losses} ({team.stats.streak.label})
+                                {team.stats.last10Campanha.wins}-{team.stats.last10Campanha.losses} ({team.stats.streak.label})
                               </p>
                             </div>
                             <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-400">Placar dos ultimos 10</p>
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-400">Placar dos últimos 10</p>
                               {team.stats.last10Games?.length ? (
                                 <div className="mt-2 space-y-1">
                                   {team.stats.last10Games.map((game, index) => (
@@ -466,13 +466,13 @@ export default function NbaAnalysisTool() {
                                   ))}
                                 </div>
                               ) : (
-                                <p className="mt-1 text-[11px] text-zinc-500">Sem jogos suficientes para exibir os ultimos 10 placares.</p>
+                                <p className="mt-1 text-[11px] text-zinc-500">Sem jogos suficientes para exibir os últimos 10 placares.</p>
                               )}
                             </div>
                           </div>
                         ) : (
                           <p className="mt-3 text-xs text-zinc-500">
-                            Estatisticas da temporada ainda nao disponiveis para este time.
+                            Estatísticas da temporada ainda não disponíveis para este time.
                           </p>
                         )}
                       </div>

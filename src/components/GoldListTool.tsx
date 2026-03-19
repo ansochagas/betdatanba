@@ -44,7 +44,7 @@ const marketTheme: Record<
     accent: "text-emerald-100",
     panel: "from-emerald-50/[0.05] via-zinc-900 to-zinc-950",
     ring: "border-emerald-100/10",
-    label: "Assistencias",
+    label: "Assistências",
   },
 };
 
@@ -55,15 +55,15 @@ const confidenceTheme: Record<string, string> = {
 };
 
 const matchupLabel: Record<string, string> = {
-  muito_favoravel: "Muito favoravel",
-  favoravel: "Favoravel",
+  muito_favoravel: "Muito favorável",
+  favoravel: "Favorável",
   neutro: "Neutro",
   dificil: "Mais duro",
 };
 
 const trendLabel: Record<string, string> = {
   subindo: "Subindo",
-  estavel: "Estavel",
+  estavel: "Estável",
   caindo: "Caindo",
 };
 
@@ -131,7 +131,7 @@ function PickCard({
                 {theme.label}
               </span>
               <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] ${getConfidenceBadge(pick.confidenceLevel)}`}>
-                Confianca {pick.confidenceLevel}
+                Confiança {pick.confidenceLevel}
               </span>
             </div>
             <h3 className="mt-4 text-2xl font-black tracking-tight text-white">
@@ -154,15 +154,15 @@ function PickCard({
 
         <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-white/5 bg-black/20 p-4 sm:grid-cols-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Projecao</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Projeção</p>
             <p className="mt-1 text-xl font-black text-white">{formatNumber(pick.projection)}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Media 5 jogos</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Média 5 jogos</p>
             <p className="mt-1 text-xl font-black text-white">{formatNumber(pick.recentAverage)}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Media ult. 3</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Média últ. 3</p>
             <p className="mt-1 text-xl font-black text-white">{formatNumber(pick.lastThreeAverage)}</p>
           </div>
           <div>
@@ -178,7 +178,7 @@ function PickCard({
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-3 py-1.5">
             <TrendingUp size={13} className="text-zinc-500" />
-            Tendencia {trendLabel[pick.trend]}
+            Tendência {trendLabel[pick.trend]}
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-3 py-1.5">
             <BarChart3 size={13} className="text-zinc-500" />
@@ -237,7 +237,7 @@ export default function GoldListTool() {
       const result = await response.json();
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.error || "Nao foi possivel carregar Melhores do Dia.");
+        throw new Error(result?.error || "Não foi possível carregar Melhores do Dia.");
       }
 
       setData(result.data as NbaGoldListResponse);
@@ -258,7 +258,7 @@ export default function GoldListTool() {
       { href: "#top-do-dia", label: "Top do Dia" },
       { href: "#points", label: "Pontos" },
       { href: "#rebounds", label: "Rebotes" },
-      { href: "#assists", label: "Assistencias" },
+      { href: "#assists", label: "Assistências" },
     ],
     []
   );
@@ -357,7 +357,7 @@ export default function GoldListTool() {
             Sem leitura forte no momento
           </p>
           <p className="mt-3 text-zinc-300">
-            Hoje nao conseguimos montar uma leitura forte o bastante para Pontos, Rebotes e Assistencias.
+            Hoje não conseguimos montar uma leitura forte o bastante para Pontos, Rebotes e Assistências.
           </p>
         </div>
       ) : (
@@ -405,7 +405,7 @@ export default function GoldListTool() {
 
       <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
         <p className="text-xs leading-6 text-zinc-500">
-          MVP pre-jogo: esta tela prioriza apenas os jogos que acontecem hoje no horario de Brasilia. O score combina media recente do jogador, tendencia curta, papel no time, consistencia e contexto do confronto para Pontos, Rebotes e Assistencias.
+          MVP pré-jogo: esta tela prioriza apenas os jogos que acontecem hoje no horário de Brasília. O score combina média recente do jogador, tendência curta, papel no time, consistência e contexto do confronto para Pontos, Rebotes e Assistências.
         </p>
       </div>
     </div>

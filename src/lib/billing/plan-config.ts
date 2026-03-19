@@ -40,28 +40,28 @@ const PLAN_PRICE_MAP: Record<string, Omit<BillingPlanConfig, "periodDays">> = {
   nba_trial: {
     planId: "nba_trial",
     title: "Trial NBA",
-    description: "Acesso de teste NBA",
+    description: "Acesso de teste da NBA",
     unitPrice: 0,
     currencyId: "BRL",
   },
   nba_monthly: {
     planId: "nba_monthly",
     title: "NBA Mensal",
-    description: "Acesso completo NBA por 30 dias",
+    description: "Acesso completo da NBA por 30 dias",
     unitPrice: 49.9,
     currencyId: "BRL",
   },
   nba_quarterly: {
     planId: "nba_quarterly",
     title: "NBA Trimestral",
-    description: "Acesso completo NBA por 90 dias",
+    description: "Acesso completo da NBA por 90 dias",
     unitPrice: 99.9,
     currencyId: "BRL",
   },
   nba_semestral: {
     planId: "nba_semestral",
     title: "NBA Semestral",
-    description: "Acesso completo NBA por 180 dias",
+    description: "Acesso completo da NBA por 180 dias",
     unitPrice: 189.9,
     currencyId: "BRL",
   },
@@ -123,7 +123,7 @@ const applyBillingPlanOverrides = (
     return {
       ...config,
       unitPrice: getPromoMonthlyPrice(),
-      description: "Acesso completo NBA por 30 dias - valor promocional de validacao",
+      description: "Acesso completo da NBA por 30 dias - valor promocional de validação",
     };
   }
 
@@ -165,11 +165,11 @@ export const getBillingPlansForUser = (
     if (plan.planId === "nba_quarterly") {
       savings = "Economize vs. mensal";
     } else if (plan.planId === "nba_semestral") {
-      savings = "Mais barato por mes";
+      savings = "Mais barato por mês";
     }
 
     if (isPromoMonthly) {
-      savings = "Valor temporario para validacao";
+      savings = "Valor temporário para validação";
     }
 
     let priceDisplay = `${formatCurrencyBrl(plan.unitPrice)}/mes`;
@@ -185,12 +185,12 @@ export const getBillingPlansForUser = (
       priceDisplay,
       description:
         isPromoMonthly
-          ? "Acesso completo NBA com valor promocional temporario para teste"
+          ? "Acesso completo da NBA com valor promocional temporário para teste"
           : plan.planId === "nba_monthly"
-            ? "Acesso completo NBA com cobranca mensal"
+            ? "Acesso completo da NBA com cobrança mensal"
             : plan.planId === "nba_quarterly"
               ? "Melhor custo trimestral para NBA"
-              : "Economia maxima no semestre NBA",
+              : "Economia máxima no semestre NBA",
       savings,
       periodDays: plan.periodDays,
     };

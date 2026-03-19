@@ -25,8 +25,8 @@ const defaultPlans: UpgradePlan[] = [
   {
     id: "nba_monthly",
     name: "NBA Mensal",
-    priceDisplay: "R$ 49,90/mes",
-    description: "Acesso completo NBA com cobranca mensal",
+    priceDisplay: "R$ 49,90/mês",
+    description: "Acesso completo da NBA com cobrança mensal",
     priceId:
       process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_MONTHLY ||
       process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY,
@@ -47,21 +47,21 @@ const defaultPlans: UpgradePlan[] = [
     pixPriceId:
       process.env.NEXT_PUBLIC_STRIPE_PIX_PRICE_NBA_QUARTERLY ||
       process.env.NEXT_PUBLIC_STRIPE_PIX_PRICE_QUARTERLY,
-    savings: "Economize vs. mensal",
+    savings: "Economize em relação ao mensal",
     periodDays: 90,
   },
   {
     id: "nba_semestral",
     name: "NBA Semestral",
     priceDisplay: "R$ 189,90 / 6 meses",
-    description: "Economia maxima no semestre NBA",
+    description: "Economia máxima no semestre NBA",
     priceId:
       process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_SEMESTRAL ||
       process.env.NEXT_PUBLIC_STRIPE_PRICE_SEMESTRAL,
     pixPriceId:
       process.env.NEXT_PUBLIC_STRIPE_PIX_PRICE_NBA_SEMESTRAL ||
       process.env.NEXT_PUBLIC_STRIPE_PIX_PRICE_SEMESTRAL,
-    savings: "Mais barato por mes",
+    savings: "Mais barato por mês",
     periodDays: 180,
   },
 ];
@@ -125,7 +125,7 @@ export default function Upgrade() {
 
   const ensureAuth = (): boolean => {
     if (status === "unauthenticated") {
-      alert("E preciso estar logado para contratar um plano.");
+      alert("? preciso estar logado para contratar um plano.");
       router.push("/login?callbackUrl=/upgrade");
       return false;
     }
@@ -140,7 +140,7 @@ export default function Upgrade() {
     try {
       const plan = plans.find((p) => p.id === selectedPlan);
       if (!plan) {
-        throw new Error("Plano selecionado invalido.");
+        throw new Error("Plano selecionado inválido.");
       }
 
       const requestBody: Record<string, string> = {
@@ -150,7 +150,7 @@ export default function Upgrade() {
       if (billingProvider === "stripe") {
         if (!plan.priceId) {
           throw new Error(
-            "Plano ou preco nao configurado. Verifique as variaveis NEXT_PUBLIC_STRIPE_PRICE_NBA_*."
+            "Plano ou preço não configurado. Verifique as variáveis NEXT_PUBLIC_STRIPE_PRICE_NBA_*."
           );
         }
         requestBody.priceId = plan.priceId;
@@ -172,10 +172,10 @@ export default function Upgrade() {
         return;
       }
 
-      throw new Error("URL de checkout nao recebida");
+      throw new Error("URL de checkout não recebida");
     } catch (error: any) {
       console.error("Erro ao criar checkout:", error);
-      alert(`Erro ao processar pagamento: ${error.message}`);
+      alert(`Erro ao processar o pagamento: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -188,7 +188,7 @@ export default function Upgrade() {
     try {
       const plan = plans.find((p) => p.id === selectedPlan);
       if (!plan) {
-        throw new Error("Plano selecionado invalido.");
+        throw new Error("Plano selecionado inválido.");
       }
 
       const requestBody: Record<string, string> = {
@@ -198,7 +198,7 @@ export default function Upgrade() {
       if (billingProvider === "stripe") {
         if (!plan.pixPriceId) {
           throw new Error(
-            "Plano PIX nao configurado. Verifique as variaveis NEXT_PUBLIC_STRIPE_PIX_PRICE_NBA_*."
+            "Plano Pix não configurado. Verifique as variáveis NEXT_PUBLIC_STRIPE_PIX_PRICE_NBA_*."
           );
         }
         requestBody.priceId = plan.pixPriceId;
@@ -220,10 +220,10 @@ export default function Upgrade() {
         return;
       }
 
-      throw new Error("URL de checkout PIX nao recebida");
+      throw new Error("URL de checkout Pix não recebida");
     } catch (error: any) {
       console.error("Erro ao criar checkout PIX:", error);
-      alert(`Erro ao processar pagamento PIX: ${error.message}`);
+      alert(`Erro ao processar o pagamento via Pix: ${error.message}`);
     } finally {
       setLoadingPix(false);
     }
@@ -247,25 +247,25 @@ export default function Upgrade() {
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-red-400" />
             <span className="font-medium text-red-400">
-              Seu periodo de teste expirou
+              Seu período de teste expirou
             </span>
           </div>
 
           <h1 className="mb-6 text-4xl font-black md:text-6xl">
-            Nao Pare Agora!
+            Não pare agora!
             <br />
             <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
-              Continue Dominando
+              Continue dominando
             </span>
           </h1>
 
           <p className="mx-auto mb-8 max-w-2xl text-xl text-gray-300">
-            Seu acesso aos dados exclusivos, previsoes precisas e ferramentas
-            profissionais esta esperando por voce.
+            Seu acesso aos dados exclusivos, previsões precisas e ferramentas
+            profissionais está esperando por você.
           </p>
 
           <p className="text-sm text-zinc-400">
-            Provider de pagamento ativo:{" "}
+            Pagamento processado por:{" "}
             <span className="font-semibold text-zinc-200">{providerLabel}</span>
           </p>
         </div>
@@ -317,8 +317,8 @@ export default function Upgrade() {
           </button>
           <p className="mt-4 text-center text-xs text-gray-500">
             {isMercadoPago
-              ? "No checkout do Mercado Pago voce podera pagar via Pix ou cartao."
-              : `Cartao (recorrente) - via ${providerLabel}`}
+              ? "No checkout do Mercado Pago você poderá pagar via Pix ou cartão."
+              : `Cartão (recorrente) - via ${providerLabel}`}
           </p>
 
           {!isMercadoPago && (
@@ -328,10 +328,10 @@ export default function Upgrade() {
                 disabled={loadingPix}
                 className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-6 py-3 font-bold text-white transition-all duration-300 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loadingPix ? "Gerando PIX..." : "Pagar com Pix (pre-pago)"}
+                {loadingPix ? "Gerando PIX..." : "Pagar com Pix (pr?-pago)"}
               </button>
               <p className="mt-2 text-center text-xs text-gray-500">
-                Pix pre-pago: acesso por{" "}
+                Pix pr?-pago: acesso por{" "}
                 {plans.find((p) => p.id === selectedPlan)?.periodDays ?? "X"}{" "}
                 dias
               </p>
