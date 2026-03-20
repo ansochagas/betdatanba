@@ -840,6 +840,64 @@ const fetchEndedByDay = async (
   return allRows;
 };
 
+const fetchEndedByDayWithRetry = async (
+  day: string,
+  pageLimit: number,
+  retries: number = 1
+): Promise<BetsApiUpcomingEvent[]> => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await fetchEndedByDay(day, pageLimit);
+    } catch (error) {
+      lastError = error;
+
+      if (attempt >= retries) {
+        break;
+      }
+
+      const backoffMs = 200 * (attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+
+  throw lastError;
+};
+
+const fetchEndedByDays = async (
+  days: string[],
+  pageLimit: number
+): Promise<BetsApiUpcomingEvent[]> => {
+  const merged: BetsApiUpcomingEvent[] = [];
+  const concurrency = getDayFetchConcurrency();
+  let firstError: unknown = null;
+
+  for (let index = 0; index < days.length; index += concurrency) {
+    const chunk = days.slice(index, index + concurrency);
+    const settledRows = await Promise.allSettled(
+      chunk.map((day) => fetchEndedByDayWithRetry(day, pageLimit, 1))
+    );
+
+    for (const result of settledRows) {
+      if (result.status === "fulfilled") {
+        merged.push(...result.value);
+        continue;
+      }
+
+      if (!firstError) {
+        firstError = result.reason;
+      }
+    }
+  }
+
+  if (merged.length === 0 && firstError) {
+    throw firstError;
+  }
+
+  return merged;
+};
+
 const fetchEventViewRow = async (eventId: string): Promise<BetsApiLiveResultRow | null> => {
   const payload = await requestBetsApi<BetsApiLiveResultRow>(BETSAPI_EVENT_VIEW_ENDPOINT, {
     event_id: eventId,
@@ -1430,9 +1488,7 @@ export const fetchNbaEndedGamesFromBetsApi = async (
   pageLimit: number = 1
 ): Promise<NbaEndedGame[]> => {
   const pastDays = getPastDaysRange(daysBack);
-  const dayRows = (
-    await Promise.all(pastDays.map((day) => fetchEndedByDay(day, pageLimit)))
-  ).flat();
+  const dayRows = await fetchEndedByDays(pastDays, pageLimit);
   const mergedRows = dedupeById(dayRows);
 
   return mergedRows
