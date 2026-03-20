@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const cacheKey = `player-analysis-v1-${provider}-${matchId}`;
-  const backupKey = `player-analysis-v1-backup-${provider}-${matchId}`;
+  const cacheKey = `player-analysis-v2-${provider}-${matchId}`;
+  const backupKey = `player-analysis-v2-backup-${provider}-${matchId}`;
 
   if (!force) {
     const cached = await advancedCache.get<NbaPlayerAnalysisResponse>("nba", cacheKey);

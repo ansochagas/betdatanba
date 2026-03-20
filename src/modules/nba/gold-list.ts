@@ -777,7 +777,19 @@ export const buildNbaGoldList = (
 ): NbaGoldListResponse => {
   const playerAnalyses = options.playerAnalyses || [];
   const teamStats = options.teamStats || [];
+  const warnings = [...(options.warnings || [])];
   const rawCandidates = buildRawCandidates(matches, playerAnalyses, teamStats);
+
+  if (
+    playerAnalyses.length > 0 &&
+    rawCandidates.length === 0 &&
+    playerAnalyses.some(({ analysis }) => analysis.detailLevel === "roster_only")
+  ) {
+    warnings.push(
+      "A Basketball API oficial trouxe elenco e lineup, mas não expôs séries de PTS/REB/AST para calcular oportunidades de jogadores hoje."
+    );
+  }
+
   const sections = buildSections(
     rawCandidates,
     options.maxPicksPerMarket ?? MAX_PICKS_PER_MARKET
@@ -803,7 +815,7 @@ export const buildNbaGoldList = (
       ),
       lastUpdate: new Date().toISOString(),
       dataSource: options.dataSource,
-      warnings: options.warnings || [],
+      warnings,
     },
   };
 };

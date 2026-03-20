@@ -170,9 +170,16 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
 
               <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-black/30 p-4 text-sm text-zinc-300">
                 <p className="font-semibold text-zinc-100">Leitura do painel</p>
-                <p className="mt-2">
-                  <span className="text-zinc-100">*</span> médias dos últimos 5 jogos.
-                </p>
+                {data?.detailLevel === "roster_only" ? (
+                  <p className="mt-2">
+                    Elenco e possível lineup carregados do feed oficial. As séries detalhadas de
+                    PTS, REB e AST não vieram nesta cobertura.
+                  </p>
+                ) : (
+                  <p className="mt-2">
+                    <span className="text-zinc-100">*</span> médias dos últimos 5 jogos.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -224,19 +231,23 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                               {team.teamName}
                             </h2>
                             <p className="text-sm text-zinc-400">
-                              {team.players.length} jogador(es) com dados recentes
+                              {data.detailLevel === "roster_only"
+                                ? `${team.players.length} jogador(es) mapeados no elenco`
+                                : `${team.players.length} jogador(es) com dados recentes`}
                             </p>
                           </div>
                         </div>
 
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${accent.chip}`}>
-                          últimos 5
+                          {data.detailLevel === "roster_only" ? "elenco" : "últimos 5"}
                         </span>
                       </div>
 
                       {team.players.length === 0 ? (
                         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 text-sm text-zinc-400">
-                          Nenhum jogador com amostra válida foi retornado para este time.
+                          {data.detailLevel === "roster_only"
+                            ? "Nenhum jogador foi mapeado no feed oficial para este time."
+                            : "Nenhum jogador com amostra válida foi retornado para este time."}
                         </div>
                       ) : (
                         <div className="mt-4 space-y-4">
@@ -257,9 +268,11 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                                   </div>
                                   <div className="min-w-0">
                                     <p className="break-words text-lg font-bold text-white">{player.playerName}</p>
-                                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                                      {player.teamName}
-                                    </p>
+                                    <div className="mt-1 flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                                      <span>{player.teamName}</span>
+                                      {player.position ? <span>{player.position}</span> : null}
+                                      {player.shirtNumber ? <span>#{player.shirtNumber}</span> : null}
+                                    </div>
                                   </div>
                                 </div>
 
@@ -274,43 +287,50 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                                 </Link>
                               </div>
 
-                              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                {[
-                                  {
-                                    label: "Média de pontos*",
-                                    average: player.points.average,
-                                    values: player.points.values,
-                                  },
-                                  {
-                                    label: "Média de rebotes*",
-                                    average: player.rebounds.average,
-                                    values: player.rebounds.values,
-                                  },
-                                  {
-                                    label: "Média de assistências*",
-                                    average: player.assists.average,
-                                    values: player.assists.values,
-                                  },
-                                ].map((metric) => (
-                                  <div
-                                    key={`${player.playerId}-${metric.label}`}
-                                    className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4"
-                                  >
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                                      {metric.label}
-                                    </p>
-                                    <p className="mt-2 text-2xl font-black text-white sm:text-3xl">
-                                      {formatAverage(metric.average)}
-                                    </p>
-                                    <p className="mt-3 text-xs text-zinc-400">
-                                      últimos 5:{" "}
-                                      <span className="font-mono text-zinc-200">
-                                        {formatLastFive(metric.values)}
-                                      </span>
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
+                              {data.detailLevel === "roster_only" ? (
+                                <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300">
+                                  O feed oficial confirmou este jogador no elenco, mas não trouxe a
+                                  série detalhada de PTS, REB e AST para o cálculo das médias.
+                                </div>
+                              ) : (
+                                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                  {[
+                                    {
+                                      label: "Média de pontos*",
+                                      average: player.points.average,
+                                      values: player.points.values,
+                                    },
+                                    {
+                                      label: "Média de rebotes*",
+                                      average: player.rebounds.average,
+                                      values: player.rebounds.values,
+                                    },
+                                    {
+                                      label: "Média de assistências*",
+                                      average: player.assists.average,
+                                      values: player.assists.values,
+                                    },
+                                  ].map((metric) => (
+                                    <div
+                                      key={`${player.playerId}-${metric.label}`}
+                                      className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4"
+                                    >
+                                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                                        {metric.label}
+                                      </p>
+                                      <p className="mt-2 text-2xl font-black text-white sm:text-3xl">
+                                        {formatAverage(metric.average)}
+                                      </p>
+                                      <p className="mt-3 text-xs text-zinc-400">
+                                        últimos 5:{" "}
+                                        <span className="font-mono text-zinc-200">
+                                          {formatLastFive(metric.values)}
+                                        </span>
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </article>
                           ))}
                         </div>

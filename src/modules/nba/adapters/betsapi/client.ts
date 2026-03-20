@@ -16,7 +16,9 @@ const BETSAPI_EVENTS_UPCOMING_ENDPOINT = "/v3/events/upcoming";
 const BETSAPI_EVENTS_INPLAY_ENDPOINT = "/v3/events/inplay";
 const BETSAPI_EVENTS_ENDED_ENDPOINT = "/v3/events/ended";
 const BETSAPI_EVENT_VIEW_ENDPOINT = "/v1/event/view";
+const BETSAPI_EVENT_LINEUP_ENDPOINT = "/v1/event/lineup";
 const BETSAPI_EVENT_ODDS_ENDPOINT = "/v2/event/odds";
+const BETSAPI_TEAM_SQUAD_ENDPOINT = "/v1/team/squad";
 const BETSAPI_PREMATCH_RAW_ENDPOINT = "/v4/bet365/prematch";
 const DEFAULT_ODDS_ENRICH_LIMIT = 12;
 
@@ -119,6 +121,34 @@ type BetsApiEnvelope<T> = {
   error_detail?: string;
   msg?: string;
   results?: T | T[] | T[][];
+};
+
+type BetsApiLineupPlayer = {
+  player?: {
+    id?: string | number;
+    name?: string;
+    cc?: string | null;
+  };
+  shirtnumber?: string | number | null;
+  pos?: string | null;
+};
+
+type BetsApiLineupSide = {
+  startinglineup?: BetsApiLineupPlayer[];
+  substitutes?: BetsApiLineupPlayer[];
+};
+
+type BetsApiEventLineupResult = {
+  home?: BetsApiLineupSide;
+  away?: BetsApiLineupSide;
+};
+
+type BetsApiTeamSquadPlayer = {
+  id?: string | number;
+  name?: string;
+  cc?: string | null;
+  position?: string | null;
+  shirtnumber?: string | number | null;
 };
 
 export type NbaLiveGame = {
@@ -907,6 +937,22 @@ const fetchEventViewRow = async (eventId: string): Promise<BetsApiLiveResultRow 
   return rows[0] ?? null;
 };
 
+const fetchEventLineup = async (eventId: string): Promise<BetsApiEventLineupResult | null> => {
+  const payload = await requestBetsApi<BetsApiEventLineupResult>(BETSAPI_EVENT_LINEUP_ENDPOINT, {
+    event_id: eventId,
+  });
+
+  return readResultsObject(payload);
+};
+
+const fetchTeamSquad = async (teamId: string): Promise<BetsApiTeamSquadPlayer[]> => {
+  const payload = await requestBetsApi<BetsApiTeamSquadPlayer>(BETSAPI_TEAM_SQUAD_ENDPOINT, {
+    team_id: teamId,
+  });
+
+  return readResultsRows(payload);
+};
+
 type BetsApiEventOddsPayload = {
   odds?: Record<
     string,
@@ -1098,6 +1144,7 @@ const buildPlayerAnalysisItems = (
       playerName: player.playerName,
       teamName: player.teamName,
       ...(player.imageHint ? { imageHint: player.imageHint } : {}),
+      dataLevel: "full" as const,
       points: {
         values: player.points,
         average: toRecentAverage(player.points),
@@ -1122,6 +1169,155 @@ const buildPlayerAnalysisItems = (
 
       return left.playerName.localeCompare(right.playerName);
     });
+};
+
+type RosterSeed = {
+  playerId: string;
+  playerName: string;
+  teamName: string;
+  position?: string | null;
+  shirtNumber?: string | null;
+  order: number;
+};
+
+const normalizePlayerName = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+const toOptionalText = (value: unknown): string | null => {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+};
+
+const pushRosterSeed = (
+  store: Map<string, RosterSeed>,
+  teamName: string,
+  playerId: unknown,
+  playerName: unknown,
+  order: number,
+  options: {
+    position?: unknown;
+    shirtNumber?: unknown;
+  } = {}
+) => {
+  const safePlayerId = toOptionalText(playerId);
+  const safePlayerName = toOptionalText(playerName);
+  if (!safePlayerName) return;
+
+  const key = safePlayerId
+    ? `${teamName}::${safePlayerId}`
+    : `${teamName}::${normalizePlayerName(safePlayerName)}`;
+
+  const current = store.get(key);
+  if (!current) {
+    store.set(key, {
+      playerId: safePlayerId || key,
+      playerName: safePlayerName,
+      teamName,
+      position: toOptionalText(options.position),
+      shirtNumber: toOptionalText(options.shirtNumber),
+      order,
+    });
+    return;
+  }
+
+  current.order = Math.min(current.order, order);
+  current.position = current.position || toOptionalText(options.position);
+  current.shirtNumber = current.shirtNumber || toOptionalText(options.shirtNumber);
+};
+
+const lineupSideToRosterSeeds = (
+  side: BetsApiLineupSide | undefined,
+  teamName: string
+): RosterSeed[] => {
+  const store = new Map<string, RosterSeed>();
+  let order = 0;
+
+  for (const player of side?.startinglineup || []) {
+    pushRosterSeed(store, teamName, player.player?.id, player.player?.name, order, {
+      position: player.pos,
+      shirtNumber: player.shirtnumber,
+    });
+    order += 1;
+  }
+
+  for (const player of side?.substitutes || []) {
+    pushRosterSeed(store, teamName, player.player?.id, player.player?.name, order + 100, {
+      position: player.pos,
+      shirtNumber: player.shirtnumber,
+    });
+    order += 1;
+  }
+
+  return Array.from(store.values()).sort((left, right) => {
+    if (left.order !== right.order) return left.order - right.order;
+    return left.playerName.localeCompare(right.playerName);
+  });
+};
+
+const squadToRosterSeeds = (squad: BetsApiTeamSquadPlayer[], teamName: string): RosterSeed[] => {
+  const store = new Map<string, RosterSeed>();
+
+  squad.forEach((player, index) => {
+    pushRosterSeed(store, teamName, player.id, player.name, index + 1000, {
+      position: player.position,
+      shirtNumber: player.shirtnumber,
+    });
+  });
+
+  return Array.from(store.values()).sort((left, right) => {
+    if (left.order !== right.order) return left.order - right.order;
+    return left.playerName.localeCompare(right.playerName);
+  });
+};
+
+const rosterSeedsToPlayers = (seeds: RosterSeed[]): NbaPlayerAnalysisItem[] => {
+  return seeds.map((seed) => ({
+    playerId: seed.playerId,
+    playerName: seed.playerName,
+    teamName: seed.teamName,
+    position: seed.position ?? null,
+    shirtNumber: seed.shirtNumber ?? null,
+    dataLevel: "roster_only",
+    points: {
+      values: [],
+      average: null,
+    },
+    rebounds: {
+      values: [],
+      average: null,
+    },
+    assists: {
+      values: [],
+      average: null,
+    },
+  }));
+};
+
+const mergeRosterSeeds = (primary: RosterSeed[], secondary: RosterSeed[]): RosterSeed[] => {
+  const store = new Map<string, RosterSeed>();
+
+  for (const seed of [...primary, ...secondary]) {
+    const key = `${seed.teamName}::${seed.playerId}`;
+    const current = store.get(key);
+    if (!current) {
+      store.set(key, { ...seed });
+      continue;
+    }
+
+    current.order = Math.min(current.order, seed.order);
+    current.position = current.position || seed.position;
+    current.shirtNumber = current.shirtNumber || seed.shirtNumber;
+  }
+
+  return Array.from(store.values()).sort((left, right) => {
+    if (left.order !== right.order) return left.order - right.order;
+    return left.playerName.localeCompare(right.playerName);
+  });
 };
 
 const extractMoneylineFromEventOddsPayload = (
@@ -1213,6 +1409,77 @@ const enrichUpcomingRowsWithRealOdds = async (
   });
 };
 
+const buildRosterOnlyPlayerAnalysis = async (
+  matchId: string,
+  options: BetsApiPlayerAnalysisOptions = {},
+  viewRow: BetsApiLiveResultRow | null = null
+): Promise<NbaPlayerAnalysisResponse> => {
+  const detailRow = viewRow ?? (await fetchEventViewRow(matchId));
+  const homeTeam = options.homeTeam?.trim() || detailRow?.home?.name || "Time da Casa";
+  const awayTeam = options.awayTeam?.trim() || detailRow?.away?.name || "Time Visitante";
+  const league = options.league?.trim() || detailRow?.league?.name || "NBA";
+  const warnings: string[] = [
+    "A Basketball API oficial trouxe elenco e lineup, mas não expôs a série detalhada de PTS/REB/AST para este jogo.",
+  ];
+
+  let lineup: BetsApiEventLineupResult | null = null;
+  try {
+    lineup = await fetchEventLineup(matchId);
+  } catch {
+    warnings.push("O feed oficial não liberou o lineup deste jogo no momento; usando o elenco do time.");
+  }
+
+  const buildTeamRoster = async (
+    teamName: string,
+    side: "home" | "away",
+    teamId: string | null
+  ): Promise<NbaPlayerAnalysisItem[]> => {
+    const lineupSeeds = lineupSideToRosterSeeds(lineup?.[side], teamName);
+    let mergedSeeds = [...lineupSeeds];
+
+    if (teamId) {
+      try {
+        const squadSeeds = squadToRosterSeeds(await fetchTeamSquad(teamId), teamName);
+        mergedSeeds = mergeRosterSeeds(lineupSeeds, squadSeeds);
+      } catch {
+        if (mergedSeeds.length === 0) {
+          warnings.push(`Não foi possível carregar o elenco oficial de ${teamName} agora.`);
+        }
+      }
+    }
+
+    return rosterSeedsToPlayers(mergedSeeds);
+  };
+
+  const homePlayers = await buildTeamRoster(homeTeam, "home", toOptionalText(detailRow?.home?.id));
+  const awayPlayers = await buildTeamRoster(awayTeam, "away", toOptionalText(detailRow?.away?.id));
+
+  return {
+    matchId,
+    homeTeam,
+    awayTeam,
+    league,
+    scheduledAt: options.scheduledAt ?? (detailRow?.time ? toIsoDate(detailRow.time) : null),
+    source: "feed",
+    generatedAt: new Date().toISOString(),
+    detailLevel: "roster_only",
+    note: "Elenco e possível lineup carregados a partir dos endpoints oficiais da Basketball API.",
+    warnings,
+    teams: [
+      {
+        teamName: homeTeam,
+        logoUrl: getNbaTeamIdentity(homeTeam).logoUrl,
+        players: homePlayers,
+      },
+      {
+        teamName: awayTeam,
+        logoUrl: getNbaTeamIdentity(awayTeam).logoUrl,
+        players: awayPlayers,
+      },
+    ],
+  };
+};
+
 export const fetchNbaPlayerAnalysisFromBetsApi = async (
   matchId: string,
   options: BetsApiPlayerAnalysisOptions = {}
@@ -1229,34 +1496,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
       error instanceof BetsApiError &&
       (error.kind === "plan" || error.kind === "auth" || error.kind === "config")
     ) {
-      const homeTeam = options.homeTeam?.trim() || "Time da Casa";
-      const awayTeam = options.awayTeam?.trim() || "Time Visitante";
-
-      return {
-        matchId,
-        homeTeam,
-        awayTeam,
-        league: options.league?.trim() || "NBA",
-        scheduledAt: options.scheduledAt ?? null,
-        source: "feed",
-        generatedAt: new Date().toISOString(),
-        note: "Leitura de jogadores operando em modo reduzido.",
-        warnings: [
-          "Os dados detalhados de jogadores não estão disponíveis no plano atual da Basketball API.",
-        ],
-        teams: [
-          {
-            teamName: homeTeam,
-            logoUrl: getNbaTeamIdentity(homeTeam).logoUrl,
-            players: [],
-          },
-          {
-            teamName: awayTeam,
-            logoUrl: getNbaTeamIdentity(awayTeam).logoUrl,
-            players: [],
-          },
-        ],
-      };
+      return buildRosterOnlyPlayerAnalysis(matchId, options);
     }
 
     throw error;
@@ -1281,7 +1521,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
   for (const section of rawSections) {
     const body = getRawBodySection(payloadRow, section.sectionKey);
     if (!body) {
-      warnings.push(`Alguns dados detalhados deste jogo não puderam ser carregados.`);
+      warnings.push("Alguns dados detalhados deste jogo não puderam ser carregados.");
       continue;
     }
 
@@ -1314,6 +1554,15 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
     );
   }
 
+  if (homePlayers.length === 0 && awayPlayers.length === 0) {
+    return buildRosterOnlyPlayerAnalysis(matchId, {
+      ...options,
+      homeTeam,
+      awayTeam,
+      league,
+    });
+  }
+
   return {
     matchId,
     homeTeam,
@@ -1322,6 +1571,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
     scheduledAt: options.scheduledAt ?? null,
     source: "feed",
     generatedAt: new Date().toISOString(),
+    detailLevel: "full",
     note: "Médias recentes processadas a partir da leitura pré-jogo disponível.",
     warnings,
     teams: [

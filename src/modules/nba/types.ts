@@ -101,6 +101,9 @@ export type NbaPlayerAnalysisItem = {
   playerName: string;
   teamName: string;
   imageHint?: string;
+  position?: string | null;
+  shirtNumber?: string | null;
+  dataLevel?: "full" | "roster_only";
   points: NbaPlayerRecentStatLine;
   rebounds: NbaPlayerRecentStatLine;
   assists: NbaPlayerRecentStatLine;
@@ -120,6 +123,7 @@ export type NbaPlayerAnalysisResponse = {
   scheduledAt: string | null;
   source: NbaDataSource;
   generatedAt: string;
+  detailLevel: "full" | "roster_only";
   note: string;
   warnings: string[];
   teams: NbaPlayerAnalysisTeam[];
