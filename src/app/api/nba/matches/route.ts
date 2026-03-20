@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   const days = Number.isFinite(rawDays) ? Math.max(1, Math.min(rawDays, 7)) : 2;
   const provider = getNbaProvider();
 
-  const cacheKey = `matches-v2-${provider}-${days}`;
-  const backupKey = `matches-v2-backup-${provider}-${days}`;
+  const cacheKey = `matches-v3-${provider}-${days}`;
+  const backupKey = `matches-v3-backup-${provider}-${days}`;
   const startedAt = Date.now();
 
   if (!force) {

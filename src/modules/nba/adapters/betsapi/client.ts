@@ -11,11 +11,13 @@ const DEFAULT_BASE_URL = "https://api.b365api.com";
 const DEFAULT_SPORT_ID = 18;
 const DEFAULT_TIMEOUT_MS = 12000;
 const DEFAULT_MONEYLINE: NbaMoneylineOdds = { home: 1.91, away: 1.91 };
-const BETSAPI_UPCOMING_ENDPOINT = "/v1/bet365/upcoming";
-const BETSAPI_EVENT_ENDPOINT = "/v1/bet365/event";
-const BETSAPI_PREMATCH_ENDPOINT = "/v1/bet365/prematch";
+const DEFAULT_EVENTS_LEAGUE_ID = "2274";
+const BETSAPI_EVENTS_UPCOMING_ENDPOINT = "/v3/events/upcoming";
+const BETSAPI_EVENTS_INPLAY_ENDPOINT = "/v3/events/inplay";
+const BETSAPI_EVENTS_ENDED_ENDPOINT = "/v3/events/ended";
+const BETSAPI_EVENT_VIEW_ENDPOINT = "/v1/event/view";
+const BETSAPI_EVENT_ODDS_ENDPOINT = "/v2/event/odds";
 const BETSAPI_PREMATCH_RAW_ENDPOINT = "/v4/bet365/prematch";
-const BETSAPI_RESULT_ENDPOINT = "/v1/bet365/result";
 const DEFAULT_ODDS_ENRICH_LIMIT = 12;
 
 type BetsApiUpcomingEvent = {
@@ -71,6 +73,7 @@ type BetsApiEventDetailRow = {
 
 type BetsApiLiveResultRow = {
   id?: string | number;
+  sport_id?: string | number;
   time?: string | number;
   time_status?: string | number;
   league?: {
@@ -115,7 +118,7 @@ type BetsApiEnvelope<T> = {
   error?: string;
   error_detail?: string;
   msg?: string;
-  results?: T[] | T[][];
+  results?: T | T[] | T[][];
 };
 
 export type NbaLiveGame = {
@@ -321,8 +324,22 @@ const getDayFetchConcurrency = (): number => {
 };
 
 const getLeagueIdFilter = (): string | null => {
-  const value = (process.env.BETSAPI_NBA_LEAGUE_ID || "").trim();
-  return value.length > 0 ? value : null;
+  const explicitValue = (process.env.BETSAPI_NBA_EVENTS_LEAGUE_ID || "").trim();
+  if (explicitValue.length > 0) {
+    return explicitValue;
+  }
+
+  const legacyValue = (process.env.BETSAPI_NBA_LEAGUE_ID || "").trim();
+  if (!legacyValue) {
+    return DEFAULT_EVENTS_LEAGUE_ID;
+  }
+
+  const parsedLegacyValue = Number(legacyValue);
+  if (!Number.isFinite(parsedLegacyValue) || parsedLegacyValue > 999999) {
+    return DEFAULT_EVENTS_LEAGUE_ID;
+  }
+
+  return legacyValue;
 };
 
 const hasWordNba = (value: string): boolean => {
@@ -687,17 +704,27 @@ const readResultsRows = <T>(payload: BetsApiEnvelope<T>): T[] => {
   return raw as T[];
 };
 
+const readResultsObject = <T>(payload: BetsApiEnvelope<T>): T | null => {
+  const raw = payload.results;
+  if (Array.isArray(raw) || raw === null || raw === undefined) {
+    return null;
+  }
+
+  return raw as T;
+};
+
 const fetchUpcomingByDay = async (day: string): Promise<BetsApiUpcomingEvent[]> => {
   const params: Record<string, string | number> = {
     sport_id: getSportId(),
     day,
+    skip_esports: 1,
   };
   const leagueIdFilter = getLeagueIdFilter();
   if (leagueIdFilter) {
     params.league_id = leagueIdFilter;
   }
 
-  const payload = await requestBetsApi<BetsApiUpcomingEvent>(BETSAPI_UPCOMING_ENDPOINT, params);
+  const payload = await requestBetsApi<BetsApiUpcomingEvent>(BETSAPI_EVENTS_UPCOMING_ENDPOINT, params);
 
   const rows = readResultsRows(payload);
   return rows.filter((row) => String(row.sport_id ?? "") === String(getSportId()));
@@ -757,20 +784,90 @@ const fetchUpcomingByDays = async (days: string[]): Promise<BetsApiUpcomingEvent
   return merged;
 };
 
-const fetchEventDetailRows = async (eventId: string): Promise<BetsApiEventDetailRow[]> => {
-  const payload = await requestBetsApi<BetsApiEventDetailRow>(BETSAPI_EVENT_ENDPOINT, {
-    FI: eventId,
-  });
+const fetchInplayRows = async (): Promise<BetsApiLiveResultRow[]> => {
+  const params: Record<string, string | number> = {
+    sport_id: getSportId(),
+    skip_esports: 1,
+  };
+  const leagueIdFilter = getLeagueIdFilter();
+  if (leagueIdFilter) {
+    params.league_id = leagueIdFilter;
+  }
 
-  return readResultsRows(payload);
+  const payload = await requestBetsApi<BetsApiLiveResultRow>(BETSAPI_EVENTS_INPLAY_ENDPOINT, params);
+  const rows = readResultsRows(payload);
+  return rows.filter((row) => String(row.sport_id ?? "") === String(getSportId()));
 };
 
-const fetchPrematchRows = async (eventId: string): Promise<unknown[]> => {
-  const payload = await requestBetsApi<unknown>(BETSAPI_PREMATCH_ENDPOINT, {
-    FI: eventId,
+const fetchEndedByDay = async (
+  day: string,
+  pageLimit: number = 1
+): Promise<BetsApiUpcomingEvent[]> => {
+  const maxPages = clamp(pageLimit, 1, 20);
+  const allRows: BetsApiUpcomingEvent[] = [];
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const params: Record<string, string | number> = {
+      sport_id: getSportId(),
+      day,
+      page,
+      skip_esports: 1,
+    };
+    const leagueIdFilter = getLeagueIdFilter();
+    if (leagueIdFilter) {
+      params.league_id = leagueIdFilter;
+    }
+
+    const payload = await requestBetsApi<BetsApiUpcomingEvent>(
+      BETSAPI_EVENTS_ENDED_ENDPOINT,
+      params
+    );
+    const rows = readResultsRows(payload).filter(
+      (row) => String(row.sport_id ?? "") === String(getSportId())
+    );
+
+    if (rows.length === 0) {
+      break;
+    }
+
+    allRows.push(...rows);
+
+    if (rows.length < 50) {
+      break;
+    }
+  }
+
+  return allRows;
+};
+
+const fetchEventViewRow = async (eventId: string): Promise<BetsApiLiveResultRow | null> => {
+  const payload = await requestBetsApi<BetsApiLiveResultRow>(BETSAPI_EVENT_VIEW_ENDPOINT, {
+    event_id: eventId,
   });
 
-  return readResultsRows(payload);
+  const rows = readResultsRows(payload);
+  return rows[0] ?? null;
+};
+
+type BetsApiEventOddsPayload = {
+  odds?: Record<
+    string,
+    Array<{
+      home_od?: string | number;
+      away_od?: string | number;
+      draw_od?: string | number;
+    }>
+  >;
+};
+
+const fetchEventOddsPayload = async (eventId: string): Promise<BetsApiEventOddsPayload | null> => {
+  const payload = await requestBetsApi<BetsApiEventOddsPayload>(BETSAPI_EVENT_ODDS_ENDPOINT, {
+    event_id: eventId,
+    source: "bet365",
+    odds_market: 1,
+  });
+
+  return readResultsObject(payload);
 };
 
 const fetchRawPrematchRows = async (eventId: string): Promise<unknown[]> => {
@@ -780,15 +877,6 @@ const fetchRawPrematchRows = async (eventId: string): Promise<unknown[]> => {
   });
 
   return readResultsRows(payload);
-};
-
-const fetchLiveResultRow = async (eventId: string): Promise<BetsApiLiveResultRow | null> => {
-  const payload = await requestBetsApi<BetsApiLiveResultRow>(BETSAPI_RESULT_ENDPOINT, {
-    event_id: eventId,
-  });
-
-  const rows = readResultsRows(payload);
-  return rows[0] ?? null;
 };
 
 const dedupeById = <T extends { id?: string | number }>(items: T[]): T[] => {
@@ -978,254 +1066,143 @@ const buildPlayerAnalysisItems = (
     });
 };
 
-const isMoneylineLabel = (value: unknown): boolean => {
-  if (typeof value !== "string") return false;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return false;
-
-  return (
-    normalized === "money line" ||
-    normalized === "moneyline" ||
-    normalized.includes("money line")
-  );
-};
-
-const extractMoneylineFromPrematchRows = (
-  rows: Record<string, unknown>[],
+const extractMoneylineFromEventOddsPayload = (
+  payload: BetsApiEventOddsPayload | null,
   fallback: NbaMoneylineOdds = DEFAULT_MONEYLINE
 ): NbaMoneylineOdds => {
-  const marketOdds = rows
-    .map((row) => ({
-      odd: toFloat(row.odds),
-      header: row.header,
-      name: row.name,
-    }))
-    .filter(
-      (row) =>
-        row.odd !== null &&
-        row.odd > 1 &&
-        (isMoneylineLabel(row.header) || isMoneylineLabel(row.name))
-    )
-    .map((row) => row.odd as number);
-
-  if (marketOdds.length < 2) return fallback;
-
-  const [home, away, draw] = marketOdds;
-  return {
-    home: Number(home.toFixed(2)),
-    away: Number(away.toFixed(2)),
-    ...(draw && draw > 1 ? { draw: Number(draw.toFixed(2)) } : {}),
-  };
-};
-
-const extractMoneylineFromPrematchPayload = (
-  payloadRow: unknown,
-  fallback: NbaMoneylineOdds = DEFAULT_MONEYLINE
-): NbaMoneylineOdds => {
-  if (!isRecord(payloadRow)) return fallback;
-
-  const schedule = isRecord(payloadRow.schedule) ? payloadRow.schedule : null;
-  const scheduleSp = schedule && isRecord(schedule.sp) ? schedule.sp : null;
-  const main = isRecord(payloadRow.main) ? payloadRow.main : null;
-  const mainSp = main && isRecord(main.sp) ? main.sp : null;
-
-  const preferredPaths = [
-    scheduleSp?.main,
-    mainSp?.game_lines,
-    mainSp?.main,
-  ];
-
-  for (const pathRows of preferredPaths) {
-    const parsed = extractMoneylineFromPrematchRows(asObjectRows(pathRows), fallback);
-    if (!isDefaultMoneyline(parsed)) return parsed;
+  if (!payload?.odds || typeof payload.odds !== "object") {
+    return fallback;
   }
 
-  const marketGroups = [scheduleSp, mainSp].filter(
-    (group): group is Record<string, unknown> => Boolean(group)
-  );
-
-  for (const group of marketGroups) {
-    for (const value of Object.values(group)) {
-      const parsed = extractMoneylineFromPrematchRows(asObjectRows(value), fallback);
-      if (!isDefaultMoneyline(parsed)) return parsed;
+  for (const rows of Object.values(payload.odds)) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      continue;
     }
-  }
 
-  return fallback;
-};
+    const firstRow = rows[0];
+    const home = toFloat(firstRow?.home_od);
+    const away = toFloat(firstRow?.away_od);
+    const draw = toFloat(firstRow?.draw_od);
 
-const extractMoneylineFromEventRows = (
-  rows: BetsApiEventDetailRow[],
-  fallback: NbaMoneylineOdds = DEFAULT_MONEYLINE
-): NbaMoneylineOdds => {
-  const markets = rows.filter((row) => row.type === "MA");
-  const prices = rows.filter((row) => row.type === "PA");
-
-  const candidateMarketIds = new Set<string>();
-
-  for (const market of markets) {
-    const marketName = String(market.NA ?? "").toLowerCase();
-    if (marketName !== "money") continue;
-
-    const marketId = String(market.ID ?? "");
-    if (!marketId) continue;
-    candidateMarketIds.add(marketId);
-  }
-
-  for (const marketId of candidateMarketIds) {
-    const outcomes = prices
-      .filter((row) => String(row.MA ?? "") === marketId)
-      .map((row) => ({
-        outcomeIndex: toInt(row.OR),
-        decimal: typeof row.OD === "string" ? parseFractionalOdds(row.OD) : null,
-      }))
-      .filter((row) => row.outcomeIndex !== null && row.decimal !== null);
-
-    if (outcomes.length < 2) continue;
-
-    const home = outcomes.find((row) => row.outcomeIndex === 0)?.decimal ?? null;
-    const away = outcomes.find((row) => row.outcomeIndex === 1)?.decimal ?? null;
-    const draw = outcomes.find((row) => row.outcomeIndex === 2)?.decimal ?? null;
-
-    if (!home || !away) continue;
+    if (!home || !away || home <= 1 || away <= 1) {
+      continue;
+    }
 
     return {
-      home: Number(home.toFixed(2)),
-      away: Number(away.toFixed(2)),
-      ...(draw && draw > 1 ? { draw: Number(draw.toFixed(2)) } : {}),
+      home: Number(home.toFixed(3)),
+      away: Number(away.toFixed(3)),
+      ...(draw && draw > 1 ? { draw: Number(draw.toFixed(3)) } : {}),
     };
   }
 
   return fallback;
-};
-
-const enrichUpcomingRowsWithEventOdds = async (
-  rows: BetsApiUpcomingEvent[],
-  warnings: string[]
-): Promise<BetsApiUpcomingEvent[]> => {
-  const limit = getOddsEnrichLimit();
-  if (limit <= 0) return rows;
-
-  const candidates = rows
-    .filter((row) => mapTimeStatusToMatchStatus(row.time_status) === "in_play")
-    .filter((row) => isDefaultMoneyline(parseMoneyline(row)))
-    .slice(0, limit);
-
-  if (candidates.length === 0) return rows;
-
-  const marketMap = new Map<string, NbaMoneylineOdds>();
-
-  await Promise.all(
-    candidates.map(async (row) => {
-      const eventId = getEventIdForDetails(row);
-      if (!eventId) return;
-
-      try {
-        const detailRows = await fetchEventDetailRows(eventId);
-        const parsedOdds = extractMoneylineFromEventRows(detailRows);
-        if (!isDefaultMoneyline(parsedOdds)) {
-          marketMap.set(String(row.id ?? ""), parsedOdds);
-        }
-      } catch {
-        // Mantem fallback silencioso para nao quebrar ingestao.
-      }
-    })
-  );
-
-  if (marketMap.size === 0) {
-    warnings.push(
-      "Dados detalhados de moneyline não foram retornados para os jogos ao vivo analisados."
-    );
-    return rows;
-  }
-
-  return rows.map((row) => {
-    const key = String(row.id ?? "");
-    const odds = marketMap.get(key);
-    if (!odds) return row;
-
-    return {
-      ...row,
-      odds: {
-        home: odds.home,
-        away: odds.away,
-        ...(odds.draw ? { draw: odds.draw } : {}),
-      },
-    };
-  });
-};
-
-const enrichUpcomingRowsWithPrematchOdds = async (
-  rows: BetsApiUpcomingEvent[],
-  warnings: string[]
-): Promise<BetsApiUpcomingEvent[]> => {
-  const limit = getOddsEnrichLimit();
-  if (limit <= 0) return rows;
-
-  const candidates = rows
-    .filter((row) => mapTimeStatusToMatchStatus(row.time_status) === "not_started")
-    .filter((row) => isDefaultMoneyline(parseMoneyline(row)))
-    .slice(0, limit);
-
-  if (candidates.length === 0) return rows;
-
-  const marketMap = new Map<string, NbaMoneylineOdds>();
-
-  await Promise.all(
-    candidates.map(async (row) => {
-      const eventId = getEventIdForDetails(row);
-      if (!eventId) return;
-
-      try {
-        const prematchRows = await fetchPrematchRows(eventId);
-        const parsedOdds = extractMoneylineFromPrematchPayload(prematchRows[0]);
-        if (!isDefaultMoneyline(parsedOdds)) {
-          marketMap.set(String(row.id ?? ""), parsedOdds);
-        }
-      } catch {
-        // Mantem fallback silencioso para nao quebrar ingestao.
-      }
-    })
-  );
-
-  if (marketMap.size === 0) {
-    warnings.push(
-      "Dados detalhados de moneyline pré-jogo não foram retornados para os jogos analisados."
-    );
-    return rows;
-  }
-
-  return rows.map((row) => {
-    const key = String(row.id ?? "");
-    const odds = marketMap.get(key);
-    if (!odds) return row;
-
-    return {
-      ...row,
-      odds: {
-        home: odds.home,
-        away: odds.away,
-        ...(odds.draw ? { draw: odds.draw } : {}),
-      },
-    };
-  });
 };
 
 const enrichUpcomingRowsWithRealOdds = async (
   rows: BetsApiUpcomingEvent[],
   warnings: string[]
 ): Promise<BetsApiUpcomingEvent[]> => {
-  const withPrematchOdds = await enrichUpcomingRowsWithPrematchOdds(rows, warnings);
-  return enrichUpcomingRowsWithEventOdds(withPrematchOdds, warnings);
+  const limit = getOddsEnrichLimit();
+  if (limit <= 0) return rows;
+
+  const candidates = rows
+    .filter((row) => isDefaultMoneyline(parseMoneyline(row)))
+    .slice(0, limit);
+
+  if (candidates.length === 0) {
+    return rows;
+  }
+
+  const marketMap = new Map<string, NbaMoneylineOdds>();
+
+  await Promise.all(
+    candidates.map(async (row) => {
+      const eventId = getEventIdForDetails(row);
+      if (!eventId) return;
+
+      try {
+        const oddsPayload = await fetchEventOddsPayload(eventId);
+        const parsedOdds = extractMoneylineFromEventOddsPayload(oddsPayload);
+        if (!isDefaultMoneyline(parsedOdds)) {
+          marketMap.set(String(row.id ?? ""), parsedOdds);
+        }
+      } catch {
+        // Mantem fallback silencioso para nao quebrar ingestao.
+      }
+    })
+  );
+
+  if (marketMap.size === 0) {
+    warnings.push(
+      "Odds completas de moneyline nao vieram do feed da Basketball API; o MVP aplicou o fallback padrao."
+    );
+    return rows;
+  }
+
+  return rows.map((row) => {
+    const key = String(row.id ?? "");
+    const odds = marketMap.get(key);
+    if (!odds) return row;
+
+    return {
+      ...row,
+      odds: {
+        home: odds.home,
+        away: odds.away,
+        ...(odds.draw ? { draw: odds.draw } : {}),
+      },
+    };
+  });
 };
 
 export const fetchNbaPlayerAnalysisFromBetsApi = async (
   matchId: string,
   options: BetsApiPlayerAnalysisOptions = {}
 ): Promise<NbaPlayerAnalysisResponse> => {
-  const rows = await fetchRawPrematchRows(matchId);
-  const payloadRow = rows[0];
-  const inferredTeams = extractTeamsFromRawBodies(payloadRow);
+  let payloadRow: unknown = null;
+  let inferredTeams = { homeTeam: null as string | null, awayTeam: null as string | null };
+
+  try {
+    const rows = await fetchRawPrematchRows(matchId);
+    payloadRow = rows[0];
+    inferredTeams = extractTeamsFromRawBodies(payloadRow);
+  } catch (error) {
+    if (
+      error instanceof BetsApiError &&
+      (error.kind === "plan" || error.kind === "auth" || error.kind === "config")
+    ) {
+      const homeTeam = options.homeTeam?.trim() || "Time da Casa";
+      const awayTeam = options.awayTeam?.trim() || "Time Visitante";
+
+      return {
+        matchId,
+        homeTeam,
+        awayTeam,
+        league: options.league?.trim() || "NBA",
+        scheduledAt: options.scheduledAt ?? null,
+        source: "feed",
+        generatedAt: new Date().toISOString(),
+        note: "Leitura de jogadores operando em modo reduzido.",
+        warnings: [
+          "Os dados detalhados de jogadores não estão disponíveis no plano atual da Basketball API.",
+        ],
+        teams: [
+          {
+            teamName: homeTeam,
+            logoUrl: getNbaTeamIdentity(homeTeam).logoUrl,
+            players: [],
+          },
+          {
+            teamName: awayTeam,
+            logoUrl: getNbaTeamIdentity(awayTeam).logoUrl,
+            players: [],
+          },
+        ],
+      };
+    }
+
+    throw error;
+  }
 
   const homeTeam = options.homeTeam?.trim() || inferredTeams.homeTeam || "Time da Casa";
   const awayTeam = options.awayTeam?.trim() || inferredTeams.awayTeam || "Time Visitante";
@@ -1368,38 +1345,7 @@ export const fetchNbaMatchesFromBetsApi = async (days: number): Promise<NbaMatch
 };
 
 export const fetchNbaLiveGamesFromBetsApi = async (): Promise<NbaLiveGame[]> => {
-  const now = new Date();
-  const today = formatDayUtc(now);
-  const yesterdayDate = new Date(now);
-  yesterdayDate.setUTCDate(now.getUTCDate() - 1);
-  const yesterday = formatDayUtc(yesterdayDate);
-
-  const settledRows = await Promise.allSettled([
-    fetchUpcomingByDayWithRetry(today, 1),
-    fetchUpcomingByDayWithRetry(yesterday, 1),
-  ]);
-  const fulfilledRows = settledRows
-    .filter(
-      (result): result is PromiseFulfilledResult<BetsApiUpcomingEvent[]> =>
-        result.status === "fulfilled"
-    )
-    .flatMap((result) => result.value);
-  const firstError = settledRows.find(
-    (result): result is PromiseRejectedResult => result.status === "rejected"
-  );
-
-  if (fulfilledRows.length === 0 && firstError) {
-    throw firstError.reason;
-  }
-
-  const rows = dedupeById(fulfilledRows);
-
-  const liveRows = rows
-    .filter((row) => isNbaLeague(row))
-    .filter((row) => {
-      const status = mapTimeStatusToMatchStatus(row.time_status);
-      return status === "in_play";
-    });
+  const liveRows = dedupeById(await fetchInplayRows()).filter((row) => isNbaLeague(row));
 
   const enrichedGames = await Promise.all(
     liveRows.map(async (row) => {
@@ -1410,18 +1356,18 @@ export const fetchNbaLiveGamesFromBetsApi = async (): Promise<NbaLiveGame[]> => 
       const fallbackOdds = parseMoneyline(row);
       const eventId = getEventIdForDetails(row);
 
-      let liveResultRow: BetsApiLiveResultRow | null = null;
+      let eventViewRow: BetsApiLiveResultRow | null = null;
       let liveOdds = fallbackOdds;
 
       if (eventId) {
         try {
-          const [resultRow, detailRows] = await Promise.all([
-            fetchLiveResultRow(eventId),
-            fetchEventDetailRows(eventId),
+          const [viewRow, oddsPayload] = await Promise.all([
+            fetchEventViewRow(eventId),
+            fetchEventOddsPayload(eventId),
           ]);
 
-          liveResultRow = resultRow;
-          const parsedLiveOdds = extractMoneylineFromEventRows(detailRows, fallbackOdds);
+          eventViewRow = viewRow;
+          const parsedLiveOdds = extractMoneylineFromEventOddsPayload(oddsPayload, fallbackOdds);
           if (!isDefaultMoneyline(parsedLiveOdds)) {
             liveOdds = parsedLiveOdds;
           }
@@ -1430,45 +1376,45 @@ export const fetchNbaLiveGamesFromBetsApi = async (): Promise<NbaLiveGame[]> => 
         }
       }
 
-      const gameClock = parseTimerObject(liveResultRow?.timer, liveResultRow?.extra);
+      const gameClock = parseTimerObject(row.timer, eventViewRow?.extra ?? row.extra);
       const formattedClock = formatGameClock(gameClock) || parseTimer(row);
       const quarterLabel = formatQuarterLabel(gameClock?.quarter ?? null) || parsePeriod(row);
 
       return {
         id: String(row.id ?? ""),
-        scheduledAt: toIsoDate(liveResultRow?.time ?? row.time),
-        league: liveResultRow?.league?.name || row.league?.name || "NBA",
+        scheduledAt: toIsoDate(row.time),
+        league: row.league?.name || eventViewRow?.league?.name || "NBA",
         homeTeam,
         awayTeam,
         homeTeamLogo: homeIdentity.logoUrl,
         awayTeamLogo: awayIdentity.logoUrl,
-        status: mapTimeStatusToMatchStatus(liveResultRow?.time_status ?? row.time_status),
-        timeStatus: String(liveResultRow?.time_status ?? row.time_status ?? ""),
-        score: parseScore(liveResultRow?.ss ?? row.ss),
+        status: mapTimeStatusToMatchStatus(row.time_status),
+        timeStatus: String(row.time_status ?? ""),
+        score: parseScore(row.ss),
         odds: {
           moneyline: liveOdds,
         },
         timer: formattedClock,
         period: quarterLabel,
         gameClock,
-        quarterScores: parseQuarterScores(liveResultRow?.scores),
+        quarterScores: parseQuarterScores(row.scores),
         liveStats: {
-          fouls: parseDualStat(liveResultRow?.stats, "fouls"),
-          timeouts: parseDualStat(liveResultRow?.stats, "time_outs"),
-          freeThrows: parseDualStat(liveResultRow?.stats, "free_throws"),
-          freeThrowRate: parseDualStat(liveResultRow?.stats, "free_throws_rate"),
-          twoPoints: parseDualStat(liveResultRow?.stats, "2points"),
-          threePoints: parseDualStat(liveResultRow?.stats, "3points"),
+          fouls: parseDualStat(row.stats, "fouls"),
+          timeouts: parseDualStat(row.stats, "time_outs"),
+          freeThrows: parseDualStat(row.stats, "free_throws"),
+          freeThrowRate: parseDualStat(row.stats, "free_throws_rate"),
+          twoPoints: parseDualStat(row.stats, "2points"),
+          threePoints: parseDualStat(row.stats, "3points"),
         },
-        venue: liveResultRow?.extra?.stadium_data
+        venue: (eventViewRow?.extra ?? row.extra)?.stadium_data
           ? {
               name:
-                typeof liveResultRow.extra.stadium_data.name === "string"
-                  ? liveResultRow.extra.stadium_data.name
+                typeof (eventViewRow?.extra ?? row.extra)?.stadium_data?.name === "string"
+                  ? ((eventViewRow?.extra ?? row.extra)?.stadium_data?.name as string)
                   : null,
               city:
-                typeof liveResultRow.extra.stadium_data.city === "string"
-                  ? liveResultRow.extra.stadium_data.city
+                typeof (eventViewRow?.extra ?? row.extra)?.stadium_data?.city === "string"
+                  ? ((eventViewRow?.extra ?? row.extra)?.stadium_data?.city as string)
                   : null,
             }
           : null,
@@ -1481,10 +1427,12 @@ export const fetchNbaLiveGamesFromBetsApi = async (): Promise<NbaLiveGame[]> => 
 
 export const fetchNbaEndedGamesFromBetsApi = async (
   daysBack: number,
-  _pageLimit?: number
+  pageLimit: number = 1
 ): Promise<NbaEndedGame[]> => {
   const pastDays = getPastDaysRange(daysBack);
-  const dayRows = await fetchUpcomingByDays(pastDays);
+  const dayRows = (
+    await Promise.all(pastDays.map((day) => fetchEndedByDay(day, pageLimit)))
+  ).flat();
   const mergedRows = dedupeById(dayRows);
 
   return mergedRows

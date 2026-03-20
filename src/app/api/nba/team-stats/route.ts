@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.trunc(rawLimit), 1), 30) : 30;
 
   const season = getCurrentNbaSeasonRange(new Date());
-  const cacheKey = `team-stats-v1-${season.seasonLabel}`;
-  const backupKey = `team-stats-v1-backup-${season.seasonLabel}`;
+  const cacheKey = `team-stats-v2-${season.seasonLabel}`;
+  const backupKey = `team-stats-v2-backup-${season.seasonLabel}`;
 
   if (!force) {
     const cached = await advancedCache.get<NbaTeamSeasonStatsResponse>("nba", cacheKey);

@@ -41,7 +41,7 @@ const filterTodayMatches = (matches: NbaMatch[]): NbaMatch[] => {
 
 const loadTeamStatsForGoldList = async (warnings: string[]) => {
   const seasonLabel = getCurrentNbaSeasonRange(new Date()).seasonLabel;
-  const cacheKey = `team-stats-v1-${seasonLabel}`;
+  const cacheKey = `team-stats-v2-${seasonLabel}`;
 
   const cached = await advancedCache.get<NbaTeamSeasonStatsResponse>("nba", cacheKey);
   if (cached) {
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
   const provider = getNbaProvider();
 
   const dateKey = formatDateInBrt(new Date());
-  const cacheKey = `gold-list-v3-${provider}-${dateKey}-d${days}`;
+  const cacheKey = `gold-list-v4-${provider}-${dateKey}-d${days}`;
 
   if (!force) {
     const cached = await advancedCache.get<NbaGoldListResponse>("nba", cacheKey);

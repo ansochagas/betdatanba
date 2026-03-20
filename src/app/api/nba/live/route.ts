@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const force = searchParams.get("force") === "true";
 
-  const cacheKey = "live-v3";
+  const cacheKey = "live-v4";
 
   if (!force) {
     const cached = await advancedCache.get<Record<string, unknown>>("nba", cacheKey);
@@ -40,13 +40,13 @@ export async function GET(request: NextRequest) {
     const games = await fetchNbaLiveGamesFromBetsApi();
     const provider = getNbaProvider();
     const seasonLabel = getCurrentNbaSeasonRange().seasonLabel;
-    const statsCacheKey = `team-stats-v1-${seasonLabel}`;
+    const statsCacheKey = `team-stats-v2-${seasonLabel}`;
     const cachedSeasonStats = await advancedCache.get<NbaTeamSeasonStatsResponse>(
       "nba",
       statsCacheKey
     );
-    const matchesCacheKey = `matches-v2-${provider}-2`;
-    const matchesBackupKey = `matches-v2-backup-${provider}-2`;
+    const matchesCacheKey = `matches-v3-${provider}-2`;
+    const matchesBackupKey = `matches-v3-backup-${provider}-2`;
     const pregameMatches =
       (await advancedCache.get<NbaMatch[]>("nba", matchesCacheKey)) ||
       (await advancedCache.get<NbaMatch[]>("nba", matchesBackupKey)) ||
