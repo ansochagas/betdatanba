@@ -68,8 +68,8 @@ const loadPlayerAnalysis = async (
   warnings: string[],
   force: boolean
 ): Promise<NbaPlayerAnalysisResponse | null> => {
-  const cacheKey = `player-analysis-v2-${provider}-${match.id}`;
-  const backupKey = `player-analysis-v2-backup-${provider}-${match.id}`;
+  const cacheKey = `player-analysis-v3-${provider}-${match.id}`;
+  const backupKey = `player-analysis-v3-backup-${provider}-${match.id}`;
 
   if (!force) {
     const cached = await advancedCache.get<NbaPlayerAnalysisResponse>("nba", cacheKey);
@@ -82,6 +82,7 @@ const loadPlayerAnalysis = async (
     const analysis = await fetchNbaPlayerAnalysisFromProvider(
       String(match.id),
       {
+        bet365Id: match.bet365Id || null,
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
         scheduledAt: match.scheduledAt,
@@ -136,7 +137,7 @@ export async function GET(request: NextRequest) {
   const provider = getNbaProvider();
 
   const dateKey = formatDateInBrt(new Date());
-  const cacheKey = `gold-list-v5-${provider}-${dateKey}-d${days}`;
+  const cacheKey = `gold-list-v6-${provider}-${dateKey}-d${days}`;
 
   if (!force) {
     const cached = await advancedCache.get<NbaGoldListResponse>("nba", cacheKey);

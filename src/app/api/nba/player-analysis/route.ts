@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
   const matchId = (searchParams.get("matchId") || "").trim();
+  const bet365Id = (searchParams.get("bet365Id") || "").trim();
   const homeTeam = (searchParams.get("homeTeam") || "").trim();
   const awayTeam = (searchParams.get("awayTeam") || "").trim();
   const scheduledAt = (searchParams.get("scheduledAt") || "").trim();
@@ -31,8 +32,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const cacheKey = `player-analysis-v2-${provider}-${matchId}`;
-  const backupKey = `player-analysis-v2-backup-${provider}-${matchId}`;
+  const cacheKey = `player-analysis-v3-${provider}-${matchId}`;
+  const backupKey = `player-analysis-v3-backup-${provider}-${matchId}`;
 
   if (!force) {
     const cached = await advancedCache.get<NbaPlayerAnalysisResponse>("nba", cacheKey);
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
     const result = await fetchNbaPlayerAnalysisFromProvider(
       matchId,
       {
+        bet365Id: bet365Id || null,
         homeTeam: homeTeam || null,
         awayTeam: awayTeam || null,
         scheduledAt: scheduledAt || null,

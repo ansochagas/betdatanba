@@ -786,7 +786,7 @@ export const buildNbaGoldList = (
     playerAnalyses.some(({ analysis }) => analysis.detailLevel === "roster_only")
   ) {
     warnings.push(
-      "A Basketball API oficial trouxe elenco e lineup, mas não expôs séries de PTS/REB/AST para calcular oportunidades de jogadores hoje."
+      "Não conseguimos dados completos de jogadores para calcular oportunidades hoje."
     );
   }
 

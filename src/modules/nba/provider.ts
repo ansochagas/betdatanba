@@ -41,6 +41,7 @@ export const getNbaProviderFriendlyMessage = (
 export const fetchNbaPlayerAnalysisFromProvider = async (
   matchId: string,
   options: {
+    bet365Id?: string | null;
     homeTeam?: string | null;
     awayTeam?: string | null;
     scheduledAt?: string | null;

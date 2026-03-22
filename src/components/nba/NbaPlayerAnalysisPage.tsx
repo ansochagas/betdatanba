@@ -7,6 +7,7 @@ import { NbaPlayerAnalysisResponse } from "@/modules/nba/types";
 
 type NbaPlayerAnalysisPageProps = {
   matchId: string;
+  bet365Id?: string;
   homeTeam?: string;
   awayTeam?: string;
   scheduledAt?: string;
@@ -42,6 +43,7 @@ const formatLastFive = (values: number[]): string => {
 
 const buildPlayerAnalysisUrl = ({
   matchId,
+  bet365Id,
   homeTeam,
   awayTeam,
   scheduledAt,
@@ -52,6 +54,7 @@ const buildPlayerAnalysisUrl = ({
     matchId,
   });
 
+  if (bet365Id) params.set("bet365Id", bet365Id);
   if (homeTeam) params.set("homeTeam", homeTeam);
   if (awayTeam) params.set("awayTeam", awayTeam);
   if (scheduledAt) params.set("scheduledAt", scheduledAt);
@@ -76,7 +79,7 @@ const teamAccent = (index: number) => {
 };
 
 export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps) {
-  const { matchId, homeTeam, awayTeam, scheduledAt, league } = props;
+  const { matchId, bet365Id, homeTeam, awayTeam, scheduledAt, league } = props;
   const [data, setData] = useState<NbaPlayerAnalysisResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +97,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
         const response = await fetch(
           buildPlayerAnalysisUrl({
             matchId,
+            bet365Id,
             homeTeam,
             awayTeam,
             scheduledAt,
@@ -115,7 +119,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
         setLoading(false);
       }
     },
-    [awayTeam, homeTeam, league, matchId, scheduledAt]
+    [awayTeam, bet365Id, homeTeam, league, matchId, scheduledAt]
   );
 
   useEffect(() => {

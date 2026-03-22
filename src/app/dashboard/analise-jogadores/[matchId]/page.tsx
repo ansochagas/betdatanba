@@ -5,6 +5,7 @@ type PageProps = {
     matchId: string;
   };
   searchParams: {
+    bet365Id?: string;
     homeTeam?: string;
     awayTeam?: string;
     scheduledAt?: string;
@@ -19,6 +20,7 @@ export default function DashboardPlayerAnalysisPage({
   return (
     <NbaPlayerAnalysisPage
       matchId={params.matchId}
+      bet365Id={searchParams.bet365Id}
       homeTeam={searchParams.homeTeam}
       awayTeam={searchParams.awayTeam}
       scheduledAt={searchParams.scheduledAt}

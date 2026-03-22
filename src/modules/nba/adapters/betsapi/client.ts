@@ -26,6 +26,7 @@ type BetsApiUpcomingEvent = {
   id?: string | number;
   r_id?: string | number;
   our_event_id?: string | number;
+  bet365_id?: string | number;
   sport_id?: string | number;
   time?: string | number;
   time_str?: string | number;
@@ -75,6 +76,7 @@ type BetsApiEventDetailRow = {
 
 type BetsApiLiveResultRow = {
   id?: string | number;
+  bet365_id?: string | number;
   sport_id?: string | number;
   time?: string | number;
   time_status?: string | number;
@@ -212,6 +214,7 @@ export type NbaEndedGame = {
 };
 
 type BetsApiPlayerAnalysisOptions = {
+  bet365Id?: string | null;
   homeTeam?: string | null;
   awayTeam?: string | null;
   scheduledAt?: string | null;
@@ -268,6 +271,12 @@ const toInt = (value: unknown): number | null => {
   }
 
   return null;
+};
+
+const toOptionalId = (value: unknown): string | null => {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
 };
 
 const toFloat = (value: unknown): number | null => {
@@ -631,9 +640,11 @@ const normalizeMatch = (event: BetsApiUpcomingEvent): NbaMatch | null => {
   const awayTeam = event.away?.name || "Time Visitante";
   const homeIdentity = getNbaTeamIdentity(homeTeam);
   const awayIdentity = getNbaTeamIdentity(awayTeam);
+  const bet365Id = toOptionalId(event.bet365_id);
 
   return {
     id,
+    ...(bet365Id ? { bet365Id } : {}),
     league,
     homeTeam,
     awayTeam,
@@ -1381,14 +1392,14 @@ const enrichUpcomingRowsWithRealOdds = async (
           marketMap.set(String(row.id ?? ""), parsedOdds);
         }
       } catch {
-        // Mantem fallback silencioso para nao quebrar ingestao.
+        // Mantém fallback silencioso para não quebrar a ingestão.
       }
     })
   );
 
   if (marketMap.size === 0) {
     warnings.push(
-      "Odds completas de moneyline nao vieram do feed da Basketball API; o MVP aplicou o fallback padrao."
+      "Odds completas de moneyline não vieram do feed no momento; o sistema aplicou o fallback padrão."
     );
     return rows;
   }
@@ -1419,14 +1430,16 @@ const buildRosterOnlyPlayerAnalysis = async (
   const awayTeam = options.awayTeam?.trim() || detailRow?.away?.name || "Time Visitante";
   const league = options.league?.trim() || detailRow?.league?.name || "NBA";
   const warnings: string[] = [
-    "A Basketball API oficial trouxe elenco e lineup, mas não expôs a série detalhada de PTS/REB/AST para este jogo.",
+    "Não conseguimos dados completos de jogadores para este jogo no momento.",
   ];
 
   let lineup: BetsApiEventLineupResult | null = null;
   try {
     lineup = await fetchEventLineup(matchId);
   } catch {
-    warnings.push("O feed oficial não liberou o lineup deste jogo no momento; usando o elenco do time.");
+    warnings.push(
+      "Não conseguimos confirmar o quinteto inicial deste jogo no momento; exibindo o elenco disponível."
+    );
   }
 
   const buildTeamRoster = async (
@@ -1443,7 +1456,7 @@ const buildRosterOnlyPlayerAnalysis = async (
         mergedSeeds = mergeRosterSeeds(lineupSeeds, squadSeeds);
       } catch {
         if (mergedSeeds.length === 0) {
-          warnings.push(`Não foi possível carregar o elenco oficial de ${teamName} agora.`);
+          warnings.push(`Não conseguimos carregar o elenco de ${teamName} no momento.`);
         }
       }
     }
@@ -1463,7 +1476,7 @@ const buildRosterOnlyPlayerAnalysis = async (
     source: "feed",
     generatedAt: new Date().toISOString(),
     detailLevel: "roster_only",
-    note: "Elenco e possível lineup carregados a partir dos endpoints oficiais da Basketball API.",
+    note: "Elenco disponível carregado a partir do feed oficial.",
     warnings,
     teams: [
       {
@@ -1484,11 +1497,21 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
   matchId: string,
   options: BetsApiPlayerAnalysisOptions = {}
 ): Promise<NbaPlayerAnalysisResponse> => {
+  let detailRow: BetsApiLiveResultRow | null = null;
+  try {
+    detailRow = await fetchEventViewRow(matchId);
+  } catch {
+    detailRow = null;
+  }
+
+  const resolvedBet365Id =
+    toOptionalId(options.bet365Id) || toOptionalId(detailRow?.bet365_id) || matchId;
+
   let payloadRow: unknown = null;
   let inferredTeams = { homeTeam: null as string | null, awayTeam: null as string | null };
 
   try {
-    const rows = await fetchRawPrematchRows(matchId);
+    const rows = await fetchRawPrematchRows(resolvedBet365Id);
     payloadRow = rows[0];
     inferredTeams = extractTeamsFromRawBodies(payloadRow);
   } catch (error) {
@@ -1496,15 +1519,17 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
       error instanceof BetsApiError &&
       (error.kind === "plan" || error.kind === "auth" || error.kind === "config")
     ) {
-      return buildRosterOnlyPlayerAnalysis(matchId, options);
+      return buildRosterOnlyPlayerAnalysis(matchId, options, detailRow);
     }
 
     throw error;
   }
 
-  const homeTeam = options.homeTeam?.trim() || inferredTeams.homeTeam || "Time da Casa";
-  const awayTeam = options.awayTeam?.trim() || inferredTeams.awayTeam || "Time Visitante";
-  const league = options.league?.trim() || "NBA";
+  const homeTeam =
+    options.homeTeam?.trim() || inferredTeams.homeTeam || detailRow?.home?.name || "Time da Casa";
+  const awayTeam =
+    options.awayTeam?.trim() || inferredTeams.awayTeam || detailRow?.away?.name || "Time Visitante";
+  const league = options.league?.trim() || detailRow?.league?.name || "NBA";
 
   const playerMap = new Map<string, MutablePlayerAnalysisEntry>();
   const warnings: string[] = [];
@@ -1560,7 +1585,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
       homeTeam,
       awayTeam,
       league,
-    });
+    }, detailRow);
   }
 
   return {
@@ -1568,11 +1593,11 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
     homeTeam,
     awayTeam,
     league,
-    scheduledAt: options.scheduledAt ?? null,
+    scheduledAt: options.scheduledAt ?? (detailRow?.time ? toIsoDate(detailRow.time) : null),
     source: "feed",
     generatedAt: new Date().toISOString(),
     detailLevel: "full",
-    note: "Médias recentes processadas a partir da leitura pré-jogo disponível.",
+    note: "Médias recentes processadas a partir da leitura pré-jogo oficial disponível.",
     warnings,
     teams: [
       {
@@ -1598,7 +1623,7 @@ export const getBetsApiFriendlyMessage = (error: unknown): string => {
   }
 
   if (error.kind === "plan") {
-    return "Alguns dados não estáo disponíveis no momento. Exibindo fallback seguro.";
+    return "Alguns dados não estão disponíveis no momento. Exibindo fallback seguro.";
   }
 
   if (error.kind === "auth") {
@@ -1638,7 +1663,7 @@ export const fetchNbaMatchesFromBetsApi = async (days: number): Promise<NbaMatch
   ).length;
   if (defaultOddsCount > 0) {
     warnings.push(
-      `${defaultOddsCount} jogo(s) sem moneyline no payload bruto; odds padrao aplicadas no MVP.`
+      `${defaultOddsCount} jogo(s) sem moneyline no payload bruto; odds padrão aplicadas no MVP.`
     );
   }
 
@@ -1680,7 +1705,7 @@ export const fetchNbaLiveGamesFromBetsApi = async (): Promise<NbaLiveGame[]> => 
             liveOdds = parsedLiveOdds;
           }
         } catch {
-          // Mantem fallback silencioso para nao quebrar a tela live.
+          // Mantém fallback silencioso para não quebrar a tela live.
         }
       }
 

@@ -6,6 +6,7 @@ import { getNbaTeamIdentity } from "@/modules/nba/logos";
 
 type NbaMatchCard = {
   id: number;
+  bet365Id?: string;
   league: string;
   homeTeam: string;
   awayTeam: string;
@@ -118,6 +119,7 @@ const displayOdd = (odd: number): string => {
 
 const buildPlayerAnalysisHref = (match: NbaMatchCard): string => {
   const params = new URLSearchParams({
+    ...(match.bet365Id ? { bet365Id: match.bet365Id } : {}),
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
     scheduledAt: match.scheduledAt,

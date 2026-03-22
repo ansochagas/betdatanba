@@ -8,6 +8,7 @@ export type NbaMoneylineOdds = {
 
 export type NbaMatch = {
   id: number;
+  bet365Id?: string;
   league: string;
   homeTeam: string;
   awayTeam: string;
