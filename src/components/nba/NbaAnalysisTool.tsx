@@ -27,13 +27,13 @@ type TeamSeasonStats = {
   teamName: string;
   logoUrl: string;
   record: { wins: number; losses: number };
-  homeCampanha: { wins: number; losses: number };
-  awayCampanha: { wins: number; losses: number };
+  homeRecord: { wins: number; losses: number };
+  awayRecord: { wins: number; losses: number };
   winRate: number;
   averagePointsFor: number;
   averagePointsAgainst: number;
   pointDifferential: number;
-  last10Campanha: { wins: number; losses: number };
+  last10Record: { wins: number; losses: number };
   last10Games: Array<{
     playedAt: string;
     opponentTeam: string;
@@ -158,7 +158,7 @@ const buildPreGameInsight = (
 
   const winRateEdge = homeStats.winRate - awayStats.winRate;
   const formEdge =
-    homeStats.last10Campanha.wins / 10 - awayStats.last10Campanha.wins / 10;
+    homeStats.last10Record.wins / 10 - awayStats.last10Record.wins / 10;
   const restEdge = ((homeStats.restDays ?? 1) - (awayStats.restDays ?? 1)) / 3;
 
   const projectedSpread = Number(
@@ -443,16 +443,16 @@ export default function NbaAnalysisTool() {
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
                               <p className="text-[11px] uppercase tracking-wide text-zinc-500">Casa</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.homeCampanha.wins}-{team.stats.homeCampanha.losses}</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.homeRecord.wins}-{team.stats.homeRecord.losses}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
                               <p className="text-[11px] uppercase tracking-wide text-zinc-500">Fora</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.awayCampanha.wins}-{team.stats.awayCampanha.losses}</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.awayRecord.wins}-{team.stats.awayRecord.losses}</p>
                             </div>
                             <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
                               <p className="text-[11px] uppercase tracking-wide text-zinc-500">últimos 10</p>
                               <p className="mt-1 text-base font-semibold text-zinc-100">
-                                {team.stats.last10Campanha.wins}-{team.stats.last10Campanha.losses} ({team.stats.streak.label})
+                                {team.stats.last10Record.wins}-{team.stats.last10Record.losses} ({team.stats.streak.label})
                               </p>
                             </div>
                             <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
