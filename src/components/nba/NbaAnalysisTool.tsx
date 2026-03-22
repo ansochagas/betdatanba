@@ -96,7 +96,7 @@ const formatDaySectionLabel = (dayKey: string): string => {
   const tomorrowKey = formatBrtDayKey(tomorrow.toISOString());
 
   if (dayKey === todayKey) return "Hoje";
-  if (dayKey === tomorrowKey) return "Amanh?";
+  if (dayKey === tomorrowKey) return "Amanhã";
 
   const [year, month, day] = dayKey.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -219,11 +219,12 @@ export default function NbaAnalysisTool() {
           )
         );
       }
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Erro ao carregar dados.");
-    } finally {
-      setLoading(false);
-    }
+      } catch (loadError) {
+        console.error("Erro ao carregar módulo pré-jogo NBA:", loadError);
+        setError("Não conseguimos carregar o pré-jogo da NBA no momento.");
+      } finally {
+        setLoading(false);
+      }
   }, []);
 
   useEffect(() => {
@@ -285,7 +286,7 @@ export default function NbaAnalysisTool() {
   if (error) {
     return (
       <div className="rounded-xl border border-red-500/50 bg-red-900/20 p-6 text-red-200">
-        <p className="font-semibold">Erro ao carregar módulo pré-jogo NBA</p>
+        <p className="font-semibold">Pré-jogo indisponível no momento</p>
         <p className="mt-2 text-sm">{error}</p>
         <button
           onClick={fetchData}
@@ -301,7 +302,7 @@ export default function NbaAnalysisTool() {
     <div className="space-y-5">
       <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-5">
         <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
-          AGENDA NBA - HOJE E AMANH?
+          AGENDA NBA - HOJE E AMANHÃ
         </h2>
         <p className="mt-2 text-sm text-zinc-400">
           O módulo pré-jogo agora considera por padrão a agenda do dia atual e
@@ -426,7 +427,7 @@ export default function NbaAnalysisTool() {
                               <p className="mt-1 text-lg font-bold text-zinc-100">{formatPct(team.stats.winRate)}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Média de pontos pr?</p>
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Média de pontos a favor</p>
                               <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsFor.toFixed(1)}</p>
                             </div>
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">

@@ -79,7 +79,7 @@ export default function MinhaContaPage() {
       case "active":
         return { text: "Ativo", color: "text-green-400" };
       case "trialing":
-        return { text: "Trial", color: "text-blue-400" };
+        return { text: "Acesso temporário", color: "text-blue-400" };
       case "canceled":
         return { text: "Cancelado", color: "text-red-400" };
       case "past_due":
@@ -215,7 +215,7 @@ Depois de enviar, aguarde a confirmação no bot.`;
       const data = await response.json();
       if (data.success) {
         setPasswordResult(
-          "Senha alterada. Voc? será desconectado para entrar novamente."
+          "Senha alterada. Você será desconectado para entrar novamente."
         );
         setPasswordForm({
           currentPassword: "",

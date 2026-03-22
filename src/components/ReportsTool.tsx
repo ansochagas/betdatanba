@@ -49,7 +49,8 @@ export default function ReportsTool() {
       setSummary(data.data.summary);
       setItems(data.data.items || []);
     } catch (err: any) {
-      setError(err.message || "Erro ao carregar relatório");
+      console.error("Erro ao carregar relatório de favoritismo:", err);
+      setError("Não conseguimos carregar o relatório no momento.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -89,7 +90,7 @@ export default function ReportsTool() {
     return (
       <div className="text-center py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-        <p className="text-zinc-400">Carregando relatorios...</p>
+        <p className="text-zinc-400">Carregando relatórios...</p>
       </div>
     );
   }
@@ -105,7 +106,7 @@ export default function ReportsTool() {
               Relatório de favoritismo
             </div>
             <h2 className="text-2xl font-bold text-white mt-2">
-              Desempenho das previsões pr?-live
+              Desempenho das previsões pré-live
             </h2>
             <p className="text-sm text-zinc-400 mt-2 max-w-xl">
               Acompanhe quantas vezes o favorito indicado venceu e use isso

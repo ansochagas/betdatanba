@@ -78,7 +78,7 @@ export default function SettingsPage() {
         <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <span className="text-blue-500">📱</span>
-            Telegram Bot
+            Telegram
           </h2>
 
           <div className="space-y-4">
@@ -108,9 +108,9 @@ export default function SettingsPage() {
                 <ol className="text-sm text-gray-400 space-y-1 mb-4">
                   <li>1. Clique em "Gerar Código de Vinculação"</li>
                   <li>2. Copie o código gerado</li>
-                  <li>3. Abra o chat com @CsgoScoutBot no Telegram</li>
-                  <li>4. Envie o código para o bot</li>
-                  <li>5. Pronto! Sua conta estará vinculada</li>
+                  <li>3. Guarde o código gerado</li>
+                  <li>4. Em breve, o bot oficial da BETDATA NBA será liberado</li>
+                  <li>5. Quando o bot estiver disponível, envie o código para concluir a vinculação</li>
                 </ol>
 
                 {!linkCode ? (

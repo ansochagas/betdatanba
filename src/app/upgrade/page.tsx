@@ -125,7 +125,7 @@ export default function Upgrade() {
 
   const ensureAuth = (): boolean => {
     if (status === "unauthenticated") {
-      alert("? preciso estar logado para contratar um plano.");
+      alert("Você precisa estar logado para contratar um plano.");
       router.push("/login?callbackUrl=/upgrade");
       return false;
     }
@@ -175,7 +175,7 @@ export default function Upgrade() {
       throw new Error("URL de checkout não recebida");
     } catch (error: any) {
       console.error("Erro ao criar checkout:", error);
-      alert(`Erro ao processar o pagamento: ${error.message}`);
+      alert("Não foi possível iniciar o pagamento agora. Tente novamente em alguns instantes.");
     } finally {
       setLoading(false);
     }
@@ -223,7 +223,7 @@ export default function Upgrade() {
       throw new Error("URL de checkout Pix não recebida");
     } catch (error: any) {
       console.error("Erro ao criar checkout PIX:", error);
-      alert(`Erro ao processar o pagamento via Pix: ${error.message}`);
+      alert("Não foi possível iniciar o pagamento via Pix agora. Tente novamente em alguns instantes.");
     } finally {
       setLoadingPix(false);
     }
@@ -246,22 +246,20 @@ export default function Upgrade() {
         <div className="mb-12 text-center">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-red-400" />
-            <span className="font-medium text-red-400">
-              Seu período de teste expirou
-            </span>
+            <span className="font-medium text-red-400">Escolha seu plano</span>
           </div>
 
           <h1 className="mb-6 text-4xl font-black md:text-6xl">
-            Não pare agora!
+            Ative seu acesso
             <br />
             <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
-              Continue dominando
+              completo à plataforma
             </span>
           </h1>
 
           <p className="mx-auto mb-8 max-w-2xl text-xl text-gray-300">
-            Seu acesso aos dados exclusivos, previsões precisas e ferramentas
-            profissionais está esperando por você.
+            Escolha o plano ideal para acompanhar o pré-jogo, a análise de
+            jogadores e Melhores do Dia.
           </p>
 
           <p className="text-sm text-zinc-400">
@@ -328,10 +326,10 @@ export default function Upgrade() {
                 disabled={loadingPix}
                 className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-6 py-3 font-bold text-white transition-all duration-300 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loadingPix ? "Gerando PIX..." : "Pagar com Pix (pr?-pago)"}
+                {loadingPix ? "Gerando PIX..." : "Pagar com Pix (pré-pago)"}
               </button>
               <p className="mt-2 text-center text-xs text-gray-500">
-                Pix pr?-pago: acesso por{" "}
+                Pix pré-pago: acesso por{" "}
                 {plans.find((p) => p.id === selectedPlan)?.periodDays ?? "X"}{" "}
                 dias
               </p>

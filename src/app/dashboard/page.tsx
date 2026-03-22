@@ -141,7 +141,7 @@ function DashboardContent() {
     : subscriptionInfo.status === "ACTIVE"
     ? "Plano ativo"
     : subscriptionInfo.status === "TRIALING"
-    ? "Trial ativo"
+    ? "Acesso temporário"
     : "Inativo";
 
   const planStatusColor = !subscriptionInfo.hasSubscription
@@ -334,7 +334,6 @@ function AnalysisTool() {
       setLoading(true);
       console.log("Buscando jogos da NBA...");
 
-      // Buscar jogos NBA (mock por enquanto)
       const response = await fetch("/api/nba/matches?days=2");
       if (!response.ok) throw new Error("Erro ao buscar jogos da NBA");
 
@@ -369,7 +368,7 @@ function AnalysisTool() {
       }
     } catch (err: any) {
       console.error("Erro ao buscar jogos da NBA:", err);
-      setError(err.message);
+      setError("Não conseguimos carregar os jogos da NBA no momento.");
     } finally {
       setLoading(false);
     }
@@ -516,7 +515,7 @@ function AnalysisTool() {
       {/* Header with stats */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold mb-1">🎯 Jogos da NBA - Pr?ximos Dias</h2>
+          <h2 className="text-xl font-bold mb-1">🎯 Jogos da NBA - Próximos Dias</h2>
           <p className="text-sm text-zinc-400">
             {matches.length} jogos encontrados • Hoje + 2 dias
           </p>
@@ -1175,7 +1174,7 @@ function PlayerStatsSection({
           {teamName}
         </h4>
         <div className="text-center py-8 text-red-400">
-          Erro ao carregar dados: {error}
+          Não conseguimos carregar os dados deste time no momento.
         </div>
       </div>
     );
@@ -1757,7 +1756,7 @@ function PreLiveAnalysisModal({
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           startTime: match.startTime,
-          insights: [`Erro ao carregar análise: ${err.message}`],
+          insights: ["Não conseguimos carregar esta análise no momento."],
           pandascoreAnalysis: undefined,
         });
       } finally {

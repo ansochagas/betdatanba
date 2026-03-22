@@ -242,8 +242,8 @@ export default function GoldListTool() {
 
       setData(result.data as NbaGoldListResponse);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro de conexao.";
-      setError(message);
+      console.error("Erro ao carregar Melhores do Dia:", err);
+      setError("Não conseguimos carregar Melhores do Dia no momento.");
     } finally {
       setLoading(false);
     }
@@ -279,7 +279,7 @@ export default function GoldListTool() {
   if (error) {
     return (
       <div className="rounded-3xl border border-rose-500/30 bg-rose-950/20 p-8 text-center">
-        <p className="text-sm font-bold uppercase tracking-[0.24em] text-rose-200">Erro</p>
+        <p className="text-sm font-bold uppercase tracking-[0.24em] text-rose-200">Indisponível</p>
         <p className="mt-3 text-zinc-300">{error}</p>
         <button
           onClick={() => fetchGoldList(true)}

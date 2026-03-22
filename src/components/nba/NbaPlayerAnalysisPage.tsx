@@ -104,16 +104,13 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
         const payload = await response.json();
 
         if (!payload.success || !payload.data) {
-          throw new Error(payload.error || "Falha ao carregar a análise dos jogadores.");
+          throw new Error("Não conseguimos carregar a análise deste jogo no momento.");
         }
 
         setData(payload.data as NbaPlayerAnalysisResponse);
       } catch (loadError) {
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Erro ao carregar a análise dos jogadores."
-        );
+        console.error("Erro ao carregar análise de jogadores:", loadError);
+        setError("Não conseguimos carregar a análise deste jogo no momento.");
       } finally {
         setLoading(false);
       }
@@ -193,7 +190,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
           ) : error ? (
             <div className="px-6 py-16 sm:px-8">
               <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-6">
-                <p className="text-lg font-bold text-red-100">Falha ao carregar esta análise</p>
+                <p className="text-lg font-bold text-red-100">Análise indisponível no momento</p>
                 <p className="mt-2 text-sm text-red-200">{error}</p>
               </div>
             </div>

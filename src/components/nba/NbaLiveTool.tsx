@@ -369,7 +369,8 @@ export default function NbaLiveTool() {
 
       setGames(Array.isArray(payload.data) ? payload.data : []);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Erro ao carregar o monitoramento ao vivo.");
+      console.error("Erro ao carregar monitoramento ao vivo:", loadError);
+      setError("Não conseguimos carregar os jogos ao vivo no momento.");
       setGames([]);
     } finally {
       setLoading(false);
@@ -392,7 +393,7 @@ export default function NbaLiveTool() {
 
       {error ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-5 text-red-100">
-          <p className="text-lg font-bold">Falha no monitoramento live</p>
+          <p className="text-lg font-bold">Monitoramento ao vivo indisponível</p>
           <p className="mt-2 text-sm">{error}</p>
         </div>
       ) : null}

@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         linkCode,
-        instructions: "Envie este código para o bot @CsgoScoutBot no Telegram",
+        instructions:
+          "Guarde este código. Você usará no bot oficial da BETDATA NBA assim que a integração for liberada.",
         expiresIn: "5 minutos",
       },
     });

@@ -283,7 +283,7 @@ export default function Home() {
                               Jalen Johnson
                             </p>
                             <p className="mt-1 text-sm text-zinc-400">
-                              Assist?ncias com forte contexto no dia
+                              Assistências com forte contexto no dia
                             </p>
                           </div>
                           <div className="text-right">

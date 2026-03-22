@@ -87,16 +87,16 @@ class TelegramBot {
       if (existingUser) {
         await ctx.reply(
           `✅ Olá ${firstName}!\n\n` +
-            `Sua conta já está vinculada ao CS:GO Scout.\n` +
+            `Sua conta já está vinculada à BETDATA NBA.\n` +
             `E-mail: ${existingUser.email}\n\n` +
             `Use /help para ver os comandos disponíveis.`
         );
       } else {
         await ctx.reply(
           `🤖 Olá ${firstName}!\n\n` +
-            `Bem-vindo ao CS:GO Scout Bot!\n\n` +
+            `Bem-vindo ao bot da BETDATA NBA!\n\n` +
             `Para vincular sua conta:\n` +
-            `1. Acesse seu dashboard no CS:GO Scout\n` +
+            `1. Acesse seu dashboard na BETDATA NBA\n` +
             `2. Vá em Configurações > Telegram\n` +
             `3. Clique em "Vincular Telegram"\n` +
             `4. Copie o código e me envie!\n\n` +
@@ -108,7 +108,7 @@ class TelegramBot {
     // Comando /help
     this.bot.help(async (ctx) => {
       await ctx.reply(
-        `🤖 *CS:GO Scout Bot* - Ajuda\n\n` +
+        `🤖 *BETDATA NBA Bot* - Ajuda\n\n` +
           `*Comandos disponíveis:*\n` +
           `/start - Iniciar bot e verificar vinculação\n` +
           `/status - Ver status da sua assinatura\n` +
@@ -135,7 +135,7 @@ class TelegramBot {
       if (!user) {
         await ctx.reply(
           `❌ Conta não vinculada!\n\n` +
-            `Use /start para ver como vincular sua conta do CS:GO Scout.`
+            `Use /start para ver como vincular sua conta da BETDATA NBA.`
         );
         return;
       }
@@ -147,7 +147,7 @@ class TelegramBot {
         normalizedStatus === "active"
           ? "Ativo"
           : normalizedStatus === "trialing"
-            ? "Trial"
+            ? "Acesso temporário"
             : subscription?.status || "Inativa";
       const status = statusLabel;
       const isAllowed = subscription
