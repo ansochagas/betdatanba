@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
 import { NbaPlayerAnalysisResponse } from "@/modules/nba/types";
 
@@ -80,6 +80,10 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
   const [data, setData] = useState<NbaPlayerAnalysisResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const visibleWarnings = useMemo(() => {
+    if (!data?.warnings?.length) return [];
+    return ["N\u00e3o conseguimos dados completos para este jogo no momento."];
+  }, [data?.warnings]);
 
   const fetchData = useCallback(
     async (force = false) => {
@@ -171,13 +175,10 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
               <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-black/30 p-4 text-sm text-zinc-300">
                 <p className="font-semibold text-zinc-100">Leitura do painel</p>
                 {data?.detailLevel === "roster_only" ? (
-                  <p className="mt-2">
-                    Elenco e possível lineup carregados do feed oficial. As séries detalhadas de
-                    PTS, REB e AST não vieram nesta cobertura.
-                  </p>
+                  <p className="mt-2">{"N\u00e3o conseguimos dados completos para este jogo no momento."}</p>
                 ) : (
                   <p className="mt-2">
-                    <span className="text-zinc-100">*</span> médias dos últimos 5 jogos.
+                    <span className="text-zinc-100">*</span> {"m\u00e9dias dos \u00faltimos 5 jogos."}
                   </p>
                 )}
               </div>
@@ -198,11 +199,11 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
             </div>
           ) : data ? (
             <div className="px-6 py-6 sm:px-8">
-              {data.warnings.length > 0 && (
+              {visibleWarnings.length > 0 && (
                 <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
                   <p className="font-semibold">Observações do painel</p>
                   <div className="mt-2 space-y-1">
-                    {data.warnings.map((warning, index) => (
+                    {visibleWarnings.map((warning, index) => (
                       <p key={`warning-${index}`}>{warning}</p>
                     ))}
                   </div>
@@ -246,8 +247,8 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
                       {team.players.length === 0 ? (
                         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 text-sm text-zinc-400">
                           {data.detailLevel === "roster_only"
-                            ? "Nenhum jogador foi mapeado no feed oficial para este time."
-                            : "Nenhum jogador com amostra válida foi retornado para este time."}
+                            ? "N\u00e3o conseguimos dados deste time para este jogo no momento."
+                            : "Nenhum jogador com amostra v\u00e1lida foi retornado para este time."}
                         </div>
                       ) : (
                         <div className="mt-4 space-y-4">
@@ -289,8 +290,7 @@ export default function NbaPlayerAnalysisPage(props: NbaPlayerAnalysisPageProps)
 
                               {data.detailLevel === "roster_only" ? (
                                 <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300">
-                                  O feed oficial confirmou este jogador no elenco, mas não trouxe a
-                                  série detalhada de PTS, REB e AST para o cálculo das médias.
+                                  {"N\u00e3o conseguimos dados detalhados deste jogador para este jogo no momento."}
                                 </div>
                               ) : (
                                 <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
