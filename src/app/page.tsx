@@ -305,7 +305,7 @@ export default function Home() {
                         Análise de jogadores
                       </p>
                       <p className="mt-3 text-lg font-semibold text-white">
-                        Pontos, rebotes e assistências em uma tela s?.
+                        Pontos, rebotes e assistências em uma tela só.
                       </p>
                     </div>
                     <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
@@ -549,7 +549,7 @@ export default function Home() {
                   href="/login"
                   className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-6 py-3.5 text-base font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
                 >
-                  J? tenho conta
+                  Já tenho conta
                 </Link>
               </div>
             </div>
