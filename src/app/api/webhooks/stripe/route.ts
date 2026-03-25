@@ -26,6 +26,12 @@ const pricePlanMap = Object.fromEntries(
         process.env.STRIPE_PRICE_SEMESTRAL,
       "nba_semestral",
     ],
+    [
+      process.env.STRIPE_PRICE_NBA_LIFETIME ||
+        process.env.STRIPE_PRICE_NBA_VITALICIO ||
+        process.env.STRIPE_PRICE_LIFETIME,
+      "nba_lifetime",
+    ],
   ].filter(([priceId]) => Boolean(priceId))
 ) as Record<string, string>;
 

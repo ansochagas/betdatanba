@@ -28,6 +28,8 @@ const CANONICAL_PLAN_BY_ID: Record<string, string> = {
   nba_monthly: "nba_monthly",
   nba_quarterly: "nba_quarterly",
   nba_semestral: "nba_semestral",
+  nba_lifetime: "nba_lifetime",
+  nba_vitalicio: "nba_lifetime",
   combo_manual: "combo_manual",
   // Legado
   pro_plan: "nba_monthly",
@@ -65,6 +67,13 @@ const PLAN_PRICE_MAP: Record<string, Omit<BillingPlanConfig, "periodDays">> = {
     unitPrice: 189.9,
     currencyId: "BRL",
   },
+  nba_lifetime: {
+    planId: "nba_lifetime",
+    title: "NBA Vitalício",
+    description: "Acesso completo da NBA com pagamento único vitalício",
+    unitPrice: 199.9,
+    currencyId: "BRL",
+  },
   combo_manual: {
     planId: "combo_manual",
     title: "Combo Manual CS + NBA",
@@ -78,6 +87,7 @@ const ORDERED_PLAN_IDS = [
   "nba_monthly",
   "nba_quarterly",
   "nba_semestral",
+  "nba_lifetime",
 ] as const;
 
 const formatCurrencyBrl = (value: number): string =>
@@ -166,6 +176,8 @@ export const getBillingPlansForUser = (
       savings = "Economize vs. mensal";
     } else if (plan.planId === "nba_semestral") {
       savings = "Mais barato por mês";
+    } else if (plan.planId === "nba_lifetime") {
+      savings = "Pagamento único";
     }
 
     if (isPromoMonthly) {
@@ -177,6 +189,8 @@ export const getBillingPlansForUser = (
       priceDisplay = `${formatCurrencyBrl(plan.unitPrice)} / 3 meses`;
     } else if (plan.planId === "nba_semestral") {
       priceDisplay = `${formatCurrencyBrl(plan.unitPrice)} / 6 meses`;
+    } else if (plan.planId === "nba_lifetime") {
+      priceDisplay = `${formatCurrencyBrl(plan.unitPrice)} vitalício`;
     }
 
     return {
@@ -190,7 +204,9 @@ export const getBillingPlansForUser = (
             ? "Acesso completo da NBA com cobrança mensal"
             : plan.planId === "nba_quarterly"
               ? "Melhor custo trimestral para NBA"
-              : "Economia máxima no semestre NBA",
+              : plan.planId === "nba_semestral"
+                ? "Economia máxima no semestre NBA"
+                : "Acesso vitalício da NBA com pagamento único",
       savings,
       periodDays: plan.periodDays,
     };

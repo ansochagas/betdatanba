@@ -21,6 +21,10 @@ const getPlanFromPriceId = (priceId: string | null | undefined): string | null =
     [process.env.STRIPE_PIX_PRICE_NBA_SEMESTRAL ||
     process.env.STRIPE_PIX_PRICE_SEMESTRAL ||
     ""]: "nba_semestral",
+    [process.env.STRIPE_PIX_PRICE_NBA_LIFETIME ||
+    process.env.STRIPE_PIX_PRICE_NBA_VITALICIO ||
+    process.env.STRIPE_PIX_PRICE_LIFETIME ||
+    ""]: "nba_lifetime",
   };
 
   return map[id] || null;

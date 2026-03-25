@@ -64,6 +64,22 @@ const defaultPlans: UpgradePlan[] = [
     savings: "Mais barato por mês",
     periodDays: 180,
   },
+  {
+    id: "nba_lifetime",
+    name: "NBA Vitalício",
+    priceDisplay: "R$ 199,90 vitalício",
+    description: "Acesso vitalício completo da NBA com pagamento único",
+    priceId:
+      process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_LIFETIME ||
+      process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_VITALICIO ||
+      process.env.NEXT_PUBLIC_STRIPE_PRICE_LIFETIME,
+    pixPriceId:
+      process.env.NEXT_PUBLIC_STRIPE_PIX_PRICE_NBA_LIFETIME ||
+      process.env.NEXT_PUBLIC_STRIPE_PIX_PRICE_NBA_VITALICIO ||
+      process.env.NEXT_PUBLIC_STRIPE_PIX_PRICE_LIFETIME,
+    savings: "Pagamento único",
+    periodDays: 36500,
+  },
 ];
 
 const providerLabel =
@@ -268,7 +284,7 @@ export default function Upgrade() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <div
               key={plan.id}

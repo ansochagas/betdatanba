@@ -33,6 +33,15 @@ const pixPriceMap = Object.fromEntries(
         periodDays: getPlanDurationDays("nba_semestral"),
       },
     ],
+    [
+      process.env.STRIPE_PIX_PRICE_NBA_LIFETIME ||
+        process.env.STRIPE_PIX_PRICE_NBA_VITALICIO ||
+        process.env.STRIPE_PIX_PRICE_LIFETIME,
+      {
+        planId: "nba_lifetime",
+        periodDays: getPlanDurationDays("nba_lifetime"),
+      },
+    ],
   ].filter(([priceId]) => Boolean(priceId))
 ) as Record<string, { planId: string; periodDays: number }>;
 

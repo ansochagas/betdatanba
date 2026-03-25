@@ -1191,6 +1191,7 @@ export default function AdminDashboard() {
                     <option value="nba_monthly">NBA Mensal</option>
                     <option value="nba_quarterly">NBA Trimestral</option>
                     <option value="nba_semestral">NBA Semestral</option>
+                    <option value="nba_lifetime">NBA Vitalício</option>
                     <option value="combo_manual">Combo Manual (CS + NBA)</option>
                   </select>
                 </div>

@@ -34,6 +34,12 @@ const PLAN_DEFINITIONS: PlanDefinition[] = [
     sports: ["nba"],
   },
   {
+    id: "nba_lifetime",
+    label: "NBA Vitalício",
+    periodDays: 36500,
+    sports: ["nba"],
+  },
+  {
     id: "combo_manual",
     label: "Combo Manual CS + NBA",
     periodDays: 30,
@@ -70,17 +76,17 @@ const PLAN_DEFINITIONS: PlanDefinition[] = [
   },
 ];
 
-const PLAN_INDEX = new Map<string, PlanDefinition>(
-  PLAN_DEFINITIONS.map((plan) => [plan.id, plan])
-);
-
 const normalize = (value: unknown): string => {
   return String(value || "").trim().toLowerCase();
 };
 
+const PLAN_INDEX = new Map<string, PlanDefinition>(
+  PLAN_DEFINITIONS.map((plan) => [normalize(plan.id), plan])
+);
+
 export const getPlanDefinition = (planId: string | null | undefined): PlanDefinition | null => {
   if (!planId) return null;
-  return PLAN_INDEX.get(planId) || null;
+  return PLAN_INDEX.get(normalize(planId)) || null;
 };
 
 export const getPlanLabel = (planId: string | null | undefined): string => {
