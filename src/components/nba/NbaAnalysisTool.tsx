@@ -306,10 +306,6 @@ export default function NbaAnalysisTool() {
         <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
           AGENDA NBA - HOJE E AMANHÃ
         </h2>
-        <p className="mt-2 text-sm text-zinc-400">
-          O módulo pré-jogo agora considera por padrão a agenda do dia atual e
-          também os jogos do próximo dia no horário de Brasília.
-        </p>
       </div>
 
       <div className="space-y-4">
