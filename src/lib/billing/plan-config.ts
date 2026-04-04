@@ -71,7 +71,7 @@ const PLAN_PRICE_MAP: Record<string, Omit<BillingPlanConfig, "periodDays">> = {
     planId: "nba_lifetime",
     title: "NBA Vitalício",
     description: "Acesso completo da NBA com pagamento único vitalício",
-    unitPrice: 199.9,
+    unitPrice: 150,
     currencyId: "BRL",
   },
   combo_manual: {
