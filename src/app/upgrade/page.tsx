@@ -67,7 +67,7 @@ const defaultPlans: UpgradePlan[] = [
   {
     id: "nba_lifetime",
     name: "NBA Vitalício",
-    priceDisplay: "R$ 150,00 vitalício",
+    priceDisplay: "R$ 299,90 vitalício",
     description: "Acesso vitalício completo da NBA com pagamento único",
     priceId:
       process.env.NEXT_PUBLIC_STRIPE_PRICE_NBA_LIFETIME ||
