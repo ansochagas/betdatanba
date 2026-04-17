@@ -11,14 +11,28 @@ import { NbaMatchesResult, NbaPlayerAnalysisResponse } from "@/modules/nba/types
 
 export type NbaProvider = "api-basketball" | "betsapi";
 
-export const getNbaProvider = (): NbaProvider => {
-  const raw = (process.env.NBA_DATA_PROVIDER || "api-basketball").toLowerCase();
+const resolveProvider = (rawValue: string | undefined, fallback: NbaProvider): NbaProvider => {
+  const raw = (rawValue || fallback).toLowerCase();
   return raw === "betsapi" ? "betsapi" : "api-basketball";
 };
 
+export const getNbaPreGameProvider = (): NbaProvider =>
+  resolveProvider(process.env.NBA_PREGAME_PROVIDER, "api-basketball");
+
+export const getNbaPlayerAnalysisProvider = (): NbaProvider =>
+  resolveProvider(process.env.NBA_PLAYER_ANALYSIS_PROVIDER || process.env.NBA_DATA_PROVIDER, "betsapi");
+
+export const getNbaGoldListProvider = (): NbaProvider =>
+  resolveProvider(process.env.NBA_GOLD_LIST_PROVIDER || process.env.NBA_DATA_PROVIDER, "betsapi");
+
+export const getNbaLiveProvider = (): NbaProvider =>
+  resolveProvider(process.env.NBA_LIVE_PROVIDER || process.env.NBA_DATA_PROVIDER, "betsapi");
+
+export const getNbaProvider = (): NbaProvider => getNbaPreGameProvider();
+
 export const fetchNbaMatchesFromProvider = async (
   days: number,
-  provider: NbaProvider = getNbaProvider()
+  provider: NbaProvider = getNbaPreGameProvider()
 ): Promise<NbaMatchesResult> => {
   if (provider === "betsapi") {
     return fetchNbaMatchesFromBetsApi(days);
@@ -29,7 +43,7 @@ export const fetchNbaMatchesFromProvider = async (
 
 export const getNbaProviderFriendlyMessage = (
   error: unknown,
-  provider: NbaProvider = getNbaProvider()
+  provider: NbaProvider = getNbaPreGameProvider()
 ): string => {
   if (provider === "betsapi") {
     return getBetsApiFriendlyMessage(error);
@@ -47,7 +61,7 @@ export const fetchNbaPlayerAnalysisFromProvider = async (
     scheduledAt?: string | null;
     league?: string | null;
   } = {},
-  provider: NbaProvider = getNbaProvider()
+  provider: NbaProvider = getNbaPlayerAnalysisProvider()
 ): Promise<NbaPlayerAnalysisResponse> => {
   if (provider === "betsapi") {
     return fetchNbaPlayerAnalysisFromBetsApi(matchId, options);

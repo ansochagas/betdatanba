@@ -5,6 +5,10 @@ import {
   NbaPlayerAnalysisItem,
   NbaPlayerAnalysisResponse,
 } from "@/modules/nba/types";
+import {
+  decorateMatchCompetition,
+  getBasketballCompetitionByBetsApiLeague,
+} from "@/modules/nba/competitions";
 import { getNbaTeamIdentity } from "@/modules/nba/logos";
 
 const DEFAULT_BASE_URL = "https://api.b365api.com";
@@ -46,6 +50,7 @@ type BetsApiUpcomingEvent = {
   league?: {
     id?: string | number;
     name?: string;
+    cc?: string | null;
   };
   home?: {
     id?: string | number;
@@ -211,6 +216,17 @@ export type NbaEndedGame = {
     away: number | null;
   };
   raw: BetsApiUpcomingEvent;
+};
+
+export type NbaBuilderCatalogEvent = {
+  eventId: string;
+  leagueId: string;
+  leagueName: string;
+  homeTeam: string;
+  awayTeam: string;
+  scheduledAt: string;
+  status: string;
+  bet365Fi: string | null;
 };
 
 type BetsApiPlayerAnalysisOptions = {
@@ -385,6 +401,13 @@ const hasWordNba = (value: string): boolean => {
   return /(^|[^a-z])nba([^a-z]|$)/i.test(value);
 };
 
+const getTrackedPreGameCompetition = (event: BetsApiUpcomingEvent) =>
+  getBasketballCompetitionByBetsApiLeague(
+    event.league?.id,
+    event.league?.name,
+    event.league?.cc
+  );
+
 const isNbaLeague = (event: BetsApiUpcomingEvent): boolean => {
   const leagueIdFilter = getLeagueIdFilter();
   const leagueId = String(event.league?.id || "");
@@ -403,6 +426,9 @@ const isNbaLeague = (event: BetsApiUpcomingEvent): boolean => {
 
   return true;
 };
+
+const isTrackedPreGameLeague = (event: BetsApiUpcomingEvent): boolean =>
+  Boolean(getTrackedPreGameCompetition(event)?.supportsPreGame);
 
 const classifyError = (message: string): BetsApiError["kind"] => {
   const lower = message.toLowerCase();
@@ -635,32 +661,37 @@ const normalizeMatch = (event: BetsApiUpcomingEvent): NbaMatch | null => {
   if (!rawId) return null;
 
   const id = toInt(rawId) ?? hashString(rawId);
-  const league = event.league?.name || "NBA";
+  const competition = getTrackedPreGameCompetition(event);
+  const league = competition?.displayName || event.league?.name || "Basquete";
   const homeTeam = event.home?.name || "Time da Casa";
   const awayTeam = event.away?.name || "Time Visitante";
   const homeIdentity = getNbaTeamIdentity(homeTeam);
   const awayIdentity = getNbaTeamIdentity(awayTeam);
   const bet365Id = toOptionalId(event.bet365_id);
 
-  return {
-    id,
-    ...(bet365Id ? { bet365Id } : {}),
-    league,
-    homeTeam,
-    awayTeam,
-    homeTeamLogo: homeIdentity.logoUrl,
-    awayTeamLogo: awayIdentity.logoUrl,
-    scheduledAt: toIsoDate(event.time),
-    tournament: league,
-    status: mapTimeStatusToMatchStatus(event.time_status),
-    gameName: "NBA",
-    homeTeamId: toInt(event.home?.id) ?? undefined,
-    awayTeamId: toInt(event.away?.id) ?? undefined,
-    odds: {
-      moneyline: parseMoneyline(event),
+  return decorateMatchCompetition(
+    {
+      id,
+      ...(bet365Id ? { bet365Id } : {}),
+      league,
+      country: competition?.country,
+      homeTeam,
+      awayTeam,
+      homeTeamLogo: homeIdentity.logoUrl,
+      awayTeamLogo: awayIdentity.logoUrl,
+      scheduledAt: toIsoDate(event.time),
+      tournament: league,
+      status: mapTimeStatusToMatchStatus(event.time_status),
+      gameName: league,
+      homeTeamId: toInt(event.home?.id) ?? undefined,
+      awayTeamId: toInt(event.away?.id) ?? undefined,
+      odds: {
+        moneyline: parseMoneyline(event),
+      },
+      source: "feed",
     },
-    source: "feed",
-  };
+    competition
+  );
 };
 
 const buildApiUrl = (
@@ -754,15 +785,17 @@ const readResultsObject = <T>(payload: BetsApiEnvelope<T>): T | null => {
   return raw as T;
 };
 
-const fetchUpcomingByDay = async (day: string): Promise<BetsApiUpcomingEvent[]> => {
+const fetchUpcomingByDay = async (
+  day: string,
+  leagueFilter: string | null = getLeagueIdFilter()
+): Promise<BetsApiUpcomingEvent[]> => {
   const params: Record<string, string | number> = {
     sport_id: getSportId(),
     day,
     skip_esports: 1,
   };
-  const leagueIdFilter = getLeagueIdFilter();
-  if (leagueIdFilter) {
-    params.league_id = leagueIdFilter;
+  if (leagueFilter) {
+    params.league_id = leagueFilter;
   }
 
   const payload = await requestBetsApi<BetsApiUpcomingEvent>(BETSAPI_EVENTS_UPCOMING_ENDPOINT, params);
@@ -773,13 +806,14 @@ const fetchUpcomingByDay = async (day: string): Promise<BetsApiUpcomingEvent[]> 
 
 const fetchUpcomingByDayWithRetry = async (
   day: string,
+  leagueFilter: string | null = getLeagueIdFilter(),
   retries: number = 1
 ): Promise<BetsApiUpcomingEvent[]> => {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
-      return await fetchUpcomingByDay(day);
+      return await fetchUpcomingByDay(day, leagueFilter);
     } catch (error) {
       lastError = error;
 
@@ -795,7 +829,10 @@ const fetchUpcomingByDayWithRetry = async (
   throw lastError;
 };
 
-const fetchUpcomingByDays = async (days: string[]): Promise<BetsApiUpcomingEvent[]> => {
+const fetchUpcomingByDays = async (
+  days: string[],
+  leagueFilter: string | null = getLeagueIdFilter()
+): Promise<BetsApiUpcomingEvent[]> => {
   const merged: BetsApiUpcomingEvent[] = [];
   const concurrency = getDayFetchConcurrency();
   let firstError: unknown = null;
@@ -803,7 +840,7 @@ const fetchUpcomingByDays = async (days: string[]): Promise<BetsApiUpcomingEvent
   for (let index = 0; index < days.length; index += concurrency) {
     const chunk = days.slice(index, index + concurrency);
     const settledRows = await Promise.allSettled(
-      chunk.map((day) => fetchUpcomingByDayWithRetry(day, 1))
+      chunk.map((day) => fetchUpcomingByDayWithRetry(day, leagueFilter, 1))
     );
 
     for (const result of settledRows) {
@@ -994,6 +1031,30 @@ const fetchRawPrematchRows = async (eventId: string): Promise<unknown[]> => {
   return readResultsRows(payload);
 };
 
+const fetchStructuredPrematchRows = async (eventId: string): Promise<unknown[]> => {
+  const payload = await requestBetsApi<unknown>(BETSAPI_PREMATCH_RAW_ENDPOINT, {
+    FI: eventId,
+  });
+
+  return readResultsRows(payload);
+};
+
+const normalizeBuilderCatalogEvent = (event: BetsApiUpcomingEvent): NbaBuilderCatalogEvent | null => {
+  const eventId = getEventIdForDetails(event);
+  if (!eventId) return null;
+
+  return {
+    eventId,
+    leagueId: String(event.league?.id ?? "").trim(),
+    leagueName: event.league?.name || "NBA",
+    homeTeam: event.home?.name || "Time da Casa",
+    awayTeam: event.away?.name || "Time Visitante",
+    scheduledAt: toIsoDate(event.time),
+    status: mapTimeStatusToMatchStatus(event.time_status),
+    bet365Fi: toOptionalId(event.bet365_id),
+  };
+};
+
 const dedupeById = <T extends { id?: string | number }>(items: T[]): T[] => {
   const map = new Map<string, T>();
   for (const item of items) {
@@ -1010,6 +1071,19 @@ const isDefaultMoneyline = (odds: NbaMoneylineOdds): boolean => {
 
 const normalizeLookupKey = (value: string): string => {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+};
+
+const normalizeTeamComparisonKey = (value: string): string => {
+  const identity = getNbaTeamIdentity(value || "");
+  return normalizeLookupKey(identity.canonicalName || value || "");
+};
+
+const teamsAreEquivalent = (left: string, right: string): boolean => {
+  const leftKey = normalizeTeamComparisonKey(left);
+  const rightKey = normalizeTeamComparisonKey(right);
+
+  if (!leftKey || !rightKey) return false;
+  return leftKey === rightKey || leftKey.includes(rightKey) || rightKey.includes(leftKey);
 };
 
 const toRecentAverage = (values: number[]): number | null => {
@@ -1131,15 +1205,11 @@ const matchTeamName = (
   homeTeam: string,
   awayTeam: string
 ): "home" | "away" | null => {
-  const candidateKey = normalizeLookupKey(candidate);
-  const homeKey = normalizeLookupKey(homeTeam);
-  const awayKey = normalizeLookupKey(awayTeam);
-
-  if (candidateKey === homeKey || candidateKey.includes(homeKey) || homeKey.includes(candidateKey)) {
+  if (teamsAreEquivalent(candidate, homeTeam)) {
     return "home";
   }
 
-  if (candidateKey === awayKey || candidateKey.includes(awayKey) || awayKey.includes(candidateKey)) {
+  if (teamsAreEquivalent(candidate, awayTeam)) {
     return "away";
   }
 
@@ -1420,12 +1490,137 @@ const enrichUpcomingRowsWithRealOdds = async (
   });
 };
 
+type ResolvedPlayerAnalysisEvent = {
+  eventId: string;
+  bet365Id: string | null;
+  detailRow: BetsApiLiveResultRow | null;
+};
+
+const getLookupDaysAroundScheduledAt = (scheduledAt?: string | null): string[] => {
+  if (!scheduledAt) {
+    return getUpcomingDaysRange(3);
+  }
+
+  const baseDate = new Date(scheduledAt);
+  if (Number.isNaN(baseDate.getTime())) {
+    return getUpcomingDaysRange(3);
+  }
+
+  return Array.from(
+    new Set(
+      [-1, 0, 1].map((offset) => {
+        const date = new Date(baseDate);
+        date.setUTCDate(baseDate.getUTCDate() + offset);
+        return formatDayUtc(date);
+      })
+    )
+  );
+};
+
+const resolveBetsApiPlayerAnalysisEvent = async (
+  matchId: string,
+  options: BetsApiPlayerAnalysisOptions,
+  initialDetailRow: BetsApiLiveResultRow | null
+): Promise<ResolvedPlayerAnalysisEvent | null> => {
+  const directEventId = toOptionalId(matchId);
+
+  if (directEventId && initialDetailRow) {
+    return {
+      eventId: directEventId,
+      bet365Id: toOptionalId(initialDetailRow.bet365_id),
+      detailRow: initialDetailRow,
+    };
+  }
+
+  const homeTeam = options.homeTeam?.trim() || "";
+  const awayTeam = options.awayTeam?.trim() || "";
+  if (!homeTeam || !awayTeam) {
+    return null;
+  }
+
+  const targetTime = options.scheduledAt ? new Date(options.scheduledAt).getTime() : Number.NaN;
+  const leagueKey = normalizeLookupKey(options.league || "");
+  const lookupDays = getLookupDaysAroundScheduledAt(options.scheduledAt);
+  const upcomingRows = dedupeById(await fetchUpcomingByDays(lookupDays, getLeagueIdFilter()));
+
+  let bestCandidate: { row: BetsApiUpcomingEvent; score: number } | null = null;
+
+  for (const row of upcomingRows) {
+    if (!isNbaLeague(row)) continue;
+
+    const eventId = getEventIdForDetails(row);
+    if (!eventId) continue;
+
+    const rowHome = row.home?.name || "";
+    const rowAway = row.away?.name || "";
+    const sameSide =
+      teamsAreEquivalent(rowHome, homeTeam) && teamsAreEquivalent(rowAway, awayTeam);
+    const swappedSide =
+      teamsAreEquivalent(rowHome, awayTeam) && teamsAreEquivalent(rowAway, homeTeam);
+
+    if (!sameSide && !swappedSide) continue;
+
+    let score = sameSide ? 200 : 120;
+    const rowLeagueKey = normalizeLookupKey(row.league?.name || "");
+
+    if (leagueKey && rowLeagueKey) {
+      if (rowLeagueKey === leagueKey) {
+        score += 20;
+      } else if (rowLeagueKey.includes(leagueKey) || leagueKey.includes(rowLeagueKey)) {
+        score += 10;
+      }
+    }
+
+    const rowTime = new Date(toIsoDate(row.time)).getTime();
+    if (Number.isFinite(targetTime) && Number.isFinite(rowTime)) {
+      const gapMinutes = Math.abs(rowTime - targetTime) / 60000;
+      if (gapMinutes > 720) continue;
+      score -= Math.min(gapMinutes, 360) / 6;
+    }
+
+    if (!bestCandidate || score > bestCandidate.score) {
+      bestCandidate = { row, score };
+    }
+  }
+
+  if (!bestCandidate) {
+    return null;
+  }
+
+  const eventId = getEventIdForDetails(bestCandidate.row);
+  if (!eventId) {
+    return null;
+  }
+
+  let detailRow: BetsApiLiveResultRow | null = null;
+  try {
+    detailRow = await fetchEventViewRow(eventId);
+  } catch {
+    detailRow = null;
+  }
+
+  return {
+    eventId,
+    bet365Id: toOptionalId(bestCandidate.row.bet365_id) || toOptionalId(detailRow?.bet365_id),
+    detailRow,
+  };
+};
+
 const buildRosterOnlyPlayerAnalysis = async (
   matchId: string,
   options: BetsApiPlayerAnalysisOptions = {},
-  viewRow: BetsApiLiveResultRow | null = null
+  resolvedEvent: ResolvedPlayerAnalysisEvent | null = null
 ): Promise<NbaPlayerAnalysisResponse> => {
-  const detailRow = viewRow ?? (await fetchEventViewRow(matchId));
+  const analysisEventId = resolvedEvent?.eventId || matchId;
+  let detailRow = resolvedEvent?.detailRow ?? null;
+
+  if (!detailRow && analysisEventId) {
+    try {
+      detailRow = await fetchEventViewRow(analysisEventId);
+    } catch {
+      detailRow = null;
+    }
+  }
   const homeTeam = options.homeTeam?.trim() || detailRow?.home?.name || "Time da Casa";
   const awayTeam = options.awayTeam?.trim() || detailRow?.away?.name || "Time Visitante";
   const league = options.league?.trim() || detailRow?.league?.name || "NBA";
@@ -1435,7 +1630,7 @@ const buildRosterOnlyPlayerAnalysis = async (
 
   let lineup: BetsApiEventLineupResult | null = null;
   try {
-    lineup = await fetchEventLineup(matchId);
+    lineup = await fetchEventLineup(analysisEventId);
   } catch {
     warnings.push(
       "Não conseguimos confirmar o quinteto inicial deste jogo no momento; exibindo o elenco disponível."
@@ -1497,15 +1692,21 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
   matchId: string,
   options: BetsApiPlayerAnalysisOptions = {}
 ): Promise<NbaPlayerAnalysisResponse> => {
-  let detailRow: BetsApiLiveResultRow | null = null;
+  let directDetailRow: BetsApiLiveResultRow | null = null;
   try {
-    detailRow = await fetchEventViewRow(matchId);
+    directDetailRow = await fetchEventViewRow(matchId);
   } catch {
-    detailRow = null;
+    directDetailRow = null;
   }
 
+  const resolvedEvent = await resolveBetsApiPlayerAnalysisEvent(matchId, options, directDetailRow);
+  const detailRow = resolvedEvent?.detailRow ?? directDetailRow;
   const resolvedBet365Id =
-    toOptionalId(options.bet365Id) || toOptionalId(detailRow?.bet365_id) || matchId;
+    toOptionalId(options.bet365Id) ||
+    resolvedEvent?.bet365Id ||
+    toOptionalId(detailRow?.bet365_id) ||
+    resolvedEvent?.eventId ||
+    matchId;
 
   let payloadRow: unknown = null;
   let inferredTeams = { homeTeam: null as string | null, awayTeam: null as string | null };
@@ -1519,7 +1720,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
       error instanceof BetsApiError &&
       (error.kind === "plan" || error.kind === "auth" || error.kind === "config")
     ) {
-      return buildRosterOnlyPlayerAnalysis(matchId, options, detailRow);
+      return buildRosterOnlyPlayerAnalysis(matchId, options, resolvedEvent);
     }
 
     throw error;
@@ -1546,7 +1747,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
   for (const section of rawSections) {
     const body = getRawBodySection(payloadRow, section.sectionKey);
     if (!body) {
-      warnings.push("Alguns dados detalhados deste jogo não puderam ser carregados.");
+      warnings.push("Alguns dados detalhados deste jogo nao puderam ser carregados.");
       continue;
     }
 
@@ -1575,17 +1776,21 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
 
   if (unresolvedPlayers.length > 0) {
     warnings.push(
-      `${unresolvedPlayers.length} jogador(es) vieram com time não reconhecido e foram omitidos da visualização.`
+      `${unresolvedPlayers.length} jogador(es) vieram com time nao reconhecido e foram omitidos da visualizacao.`
     );
   }
 
   if (homePlayers.length === 0 && awayPlayers.length === 0) {
-    return buildRosterOnlyPlayerAnalysis(matchId, {
-      ...options,
-      homeTeam,
-      awayTeam,
-      league,
-    }, detailRow);
+    return buildRosterOnlyPlayerAnalysis(
+      matchId,
+      {
+        ...options,
+        homeTeam,
+        awayTeam,
+        league,
+      },
+      resolvedEvent
+    );
   }
 
   return {
@@ -1597,7 +1802,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
     source: "feed",
     generatedAt: new Date().toISOString(),
     detailLevel: "full",
-    note: "Médias recentes processadas a partir da leitura pré-jogo oficial disponível.",
+    note: "Medias recentes processadas a partir da leitura pre-jogo oficial disponivel.",
     warnings,
     teams: [
       {
@@ -1615,7 +1820,7 @@ export const fetchNbaPlayerAnalysisFromBetsApi = async (
 };
 
 export const getBetsApiFriendlyMessage = (error: unknown): string => {
-  const fallback = "Não foi possível carregar os dados da NBA agora. Exibindo fallback seguro.";
+  const fallback = "Nao foi possivel carregar os dados do basquete agora. Exibindo fallback seguro.";
   if (!(error instanceof BetsApiError)) return fallback;
 
   if (error.kind === "quota") {
@@ -1641,11 +1846,11 @@ export const fetchNbaMatchesFromBetsApi = async (days: number): Promise<NbaMatch
   const warnings: string[] = [];
   const dayRange = getUpcomingDaysRange(days);
 
-  const dayRows = await fetchUpcomingByDays(dayRange);
+  const dayRows = await fetchUpcomingByDays(dayRange, null);
   const mergedRows = dedupeById(dayRows);
 
   const filteredRows = mergedRows.filter((row) => {
-    if (!isNbaLeague(row)) return false;
+    if (!isTrackedPreGameLeague(row)) return false;
     const status = mapTimeStatusToMatchStatus(row.time_status);
     return status === "not_started" || status === "in_play";
   });
@@ -1654,7 +1859,11 @@ export const fetchNbaMatchesFromBetsApi = async (days: number): Promise<NbaMatch
   const matches = relevantRows
     .map((row) => normalizeMatch(row))
     .filter((item): item is NbaMatch => Boolean(item))
-    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+    .sort((a, b) => {
+      const priorityGap = (a.competitionPriority ?? 999) - (b.competitionPriority ?? 999);
+      if (priorityGap !== 0) return priorityGap;
+      return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+    });
 
   const defaultOddsCount = matches.filter(
     (match) =>
@@ -1668,13 +1877,57 @@ export const fetchNbaMatchesFromBetsApi = async (days: number): Promise<NbaMatch
   }
 
   if (matches.length === 0) {
-    warnings.push("Nenhum jogo da NBA foi retornado para o período solicitado.");
+    warnings.push("Nenhum jogo das ligas monitoradas foi retornado para o periodo solicitado.");
   }
 
   return {
     matches,
     warnings,
   };
+};
+
+export const fetchNbaBuilderCatalogEventsFromBetsApi = async (
+  days: number
+): Promise<{ events: NbaBuilderCatalogEvent[]; warnings: string[] }> => {
+  const warnings: string[] = [];
+  const dayRange = getUpcomingDaysRange(days);
+
+  const dayRows = await fetchUpcomingByDays(dayRange, null);
+  const mergedRows = dedupeById(dayRows);
+
+  const events = mergedRows
+    .filter((row) => isNbaLeague(row))
+    .map((row) => normalizeBuilderCatalogEvent(row))
+    .filter((item): item is NbaBuilderCatalogEvent => Boolean(item))
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+  if (events.length === 0) {
+    warnings.push("Nenhum evento elegivel da NBA foi retornado para o catalogo do builder.");
+  }
+
+  const withoutBet365Fi = events.filter((event) => !event.bet365Fi).length;
+  if (withoutBet365Fi > 0) {
+    warnings.push(
+      `${withoutBet365Fi} evento(s) vieram sem bet365Fi; o snapshot de prematch sera ignorado nesses casos.`
+    );
+  }
+
+  return {
+    events,
+    warnings,
+  };
+};
+
+export const fetchNbaEventOddsPayloadFromBetsApi = async (
+  eventId: string
+): Promise<BetsApiEventOddsPayload | null> => {
+  return fetchEventOddsPayload(eventId);
+};
+
+export const fetchNbaPrematchRowsFromBetsApi = async (
+  bet365Fi: string
+): Promise<unknown[]> => {
+  return fetchStructuredPrematchRows(bet365Fi);
 };
 
 export const fetchNbaLiveGamesFromBetsApi = async (): Promise<NbaLiveGame[]> => {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { advancedCache } from "@/services/advanced-cache-service";
 import {
   fetchNbaPlayerAnalysisFromProvider,
-  getNbaProvider,
+  getNbaPlayerAnalysisProvider,
   getNbaProviderFriendlyMessage,
 } from "@/modules/nba/provider";
 import { NbaPlayerAnalysisResponse } from "@/modules/nba/types";
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const scheduledAt = (searchParams.get("scheduledAt") || "").trim();
   const league = (searchParams.get("league") || "").trim();
   const force = searchParams.get("force") === "true";
-  const provider = getNbaProvider();
+  const provider = getNbaPlayerAnalysisProvider();
 
   if (!matchId) {
     return NextResponse.json(

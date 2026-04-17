@@ -9,7 +9,7 @@ import {
   NbaTeamSeasonStatsResponse,
 } from "@/modules/nba/types";
 import { getCurrentNbaSeasonRange } from "@/modules/nba/season-stats";
-import { fetchNbaMatchesFromProvider, getNbaProvider } from "@/modules/nba/provider";
+import { fetchNbaMatchesFromProvider, getNbaLiveProvider } from "@/modules/nba/provider";
 
 export const dynamic = "force-dynamic";
 
@@ -38,15 +38,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const games = await fetchNbaLiveGamesFromBetsApi();
-    const provider = getNbaProvider();
+    const provider = getNbaLiveProvider();
     const seasonLabel = getCurrentNbaSeasonRange().seasonLabel;
     const statsCacheKey = `team-stats-v2-${seasonLabel}`;
     const cachedSeasonStats = await advancedCache.get<NbaTeamSeasonStatsResponse>(
       "nba",
       statsCacheKey
     );
-    const matchesCacheKey = `matches-v3-${provider}-2`;
-    const matchesBackupKey = `matches-v3-backup-${provider}-2`;
+    const matchesCacheKey = `matches-v4-${provider}-2`;
+    const matchesBackupKey = `matches-v4-backup-${provider}-2`;
     const pregameMatches =
       (await advancedCache.get<NbaMatch[]>("nba", matchesCacheKey)) ||
       (await advancedCache.get<NbaMatch[]>("nba", matchesBackupKey)) ||

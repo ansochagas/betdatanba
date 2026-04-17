@@ -1,9 +1,15 @@
-﻿import { NbaMatch, NbaMatchesResult, NbaMoneylineOdds } from "@/modules/nba/types";
+import {
+  decorateMatchCompetition,
+  getBasketballCompetitionByApiBasketballLeagueId,
+  getTrackedPreGameCompetitions,
+} from "@/modules/nba/competitions";
+import { NbaMatch, NbaMatchesResult, NbaMoneylineOdds } from "@/modules/nba/types";
 
 const DEFAULT_BASE_URL = "https://v1.basketball.api-sports.io";
-const NBA_LEAGUE_ID = 12;
 const DEFAULT_MONEYLINE: NbaMoneylineOdds = { home: 1.91, away: 1.91 };
 const DEFAULT_REQUEST_TIMEOUT_MS = 7000;
+const DEFAULT_ODDS_ENRICH_LIMIT = 24;
+const DEFAULT_ODDS_ENRICH_CONCURRENCY = 4;
 
 type ApiBasketballEnvelope<T> = {
   errors?: Record<string, string> | string[] | null;
@@ -41,16 +47,9 @@ const getDateRangeInBrt = (days: number): string[] => {
   });
 };
 
-const getSeasonStartYear = (isoDate: string): number => {
-  const [yearStr, monthStr] = isoDate.split("-");
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-
-  // NBA season usually starts in October.
-  return month >= 10 ? year : year - 1;
-};
-
-const normalizeApiErrors = (errors: ApiBasketballEnvelope<unknown>["errors"]): string[] => {
+const normalizeApiErrors = (
+  errors: ApiBasketballEnvelope<unknown>["errors"]
+): string[] => {
   if (!errors) return [];
   if (Array.isArray(errors)) return errors.filter(Boolean);
   return Object.entries(errors)
@@ -75,6 +74,22 @@ const getRequestTimeoutMs = (): number => {
   return Math.max(1000, Math.min(raw, 30000));
 };
 
+const getOddsEnrichLimit = (): number => {
+  const raw = Number(process.env.API_BASKETBALL_ODDS_ENRICH_LIMIT ?? DEFAULT_ODDS_ENRICH_LIMIT);
+  if (!Number.isFinite(raw)) return DEFAULT_ODDS_ENRICH_LIMIT;
+  return Math.max(0, Math.min(raw, 100));
+};
+
+const getOddsEnrichConcurrency = (): number => {
+  const raw = Number(
+    process.env.API_BASKETBALL_ODDS_ENRICH_CONCURRENCY ?? DEFAULT_ODDS_ENRICH_CONCURRENCY
+  );
+  if (!Number.isFinite(raw)) return DEFAULT_ODDS_ENRICH_CONCURRENCY;
+  return Math.max(1, Math.min(raw, 12));
+};
+
+const dedupeWarnings = (warnings: string[]): string[] => [...new Set(warnings.filter(Boolean))];
+
 const makeApiRequest = async <T>(
   endpoint: string,
   params: Record<string, string | number>
@@ -83,7 +98,7 @@ const makeApiRequest = async <T>(
   const baseUrl = process.env.API_BASKETBALL_BASE_URL || DEFAULT_BASE_URL;
 
   if (!apiKey) {
-    throw new ApiBasketballError("Configuração da consulta NBA indisponível.", "config");
+    throw new ApiBasketballError("Configuracao da consulta de basquete indisponivel.", "config");
   }
 
   const url = new URL(endpoint, baseUrl);
@@ -108,12 +123,12 @@ const makeApiRequest = async <T>(
   } catch (error: unknown) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new ApiBasketballError(
-        `Tempo limite ao consultar a NBA (${timeoutMs}ms).`,
+        `Tempo limite ao consultar o basquete (${timeoutMs}ms).`,
         "request"
       );
     }
 
-    throw new ApiBasketballError("Falha de conexão ao consultar a NBA.", "request");
+    throw new ApiBasketballError("Falha de conexao ao consultar o basquete.", "request");
   } finally {
     clearTimeout(timeoutId);
   }
@@ -122,7 +137,7 @@ const makeApiRequest = async <T>(
   try {
     payload = (await response.json()) as ApiBasketballEnvelope<T>;
   } catch {
-    throw new ApiBasketballError("Resposta inválida da consulta NBA.", "request");
+    throw new ApiBasketballError("Resposta invalida da consulta de basquete.", "request");
   }
 
   const apiErrors = normalizeApiErrors(payload.errors);
@@ -207,7 +222,13 @@ const extractMoneylineFromOddsRow = (row: any): NbaMoneylineOdds | null => {
 
 const mapGameStatus = (statusShort?: string, statusLong?: string): string => {
   const source = (statusShort || statusLong || "").toLowerCase();
-  if (source.includes("live") || source === "q1" || source === "q2" || source === "q3" || source === "q4") {
+  if (
+    source.includes("live") ||
+    source === "q1" ||
+    source === "q2" ||
+    source === "q3" ||
+    source === "q4"
+  ) {
     return "in_play";
   }
   if (source.includes("ft") || source.includes("finished")) return "finished";
@@ -216,20 +237,31 @@ const mapGameStatus = (statusShort?: string, statusLong?: string): string => {
   return "not_started";
 };
 
+const runWithConcurrency = async <T>(
+  items: T[],
+  concurrency: number,
+  task: (item: T) => Promise<void>
+) => {
+  for (let index = 0; index < items.length; index += concurrency) {
+    const chunk = items.slice(index, index + concurrency);
+    await Promise.all(chunk.map((item) => task(item)));
+  }
+};
+
 export const getApiBasketballFriendlyMessage = (error: unknown): string => {
-  const fallback = "Não foi possível carregar os dados da NBA agora. Exibindo fallback seguro.";
+  const fallback = "Nao foi possivel carregar os dados do basquete agora. Exibindo fallback seguro.";
   if (!(error instanceof ApiBasketballError)) return fallback;
 
   if (error.kind === "quota") {
-    return "Alguns dados não puderam ser carregados agora. Exibindo fallback seguro.";
+    return "Alguns dados nao puderam ser carregados agora. Exibindo fallback seguro.";
   }
 
   if (error.kind === "plan") {
-    return "Alguns dados não estáo disponíveis no momento. Exibindo fallback seguro.";
+    return "Alguns dados nao estao disponiveis no plano atual. Exibindo fallback seguro.";
   }
 
   if (error.kind === "config") {
-    return "Configuração temporariamente indisponível. Exibindo fallback seguro.";
+    return "Configuracao temporariamente indisponivel. Exibindo fallback seguro.";
   }
 
   return fallback;
@@ -240,77 +272,142 @@ export const fetchNbaMatchesFromApiBasketball = async (
 ): Promise<NbaMatchesResult> => {
   const dates = getDateRangeInBrt(days);
   const warnings: string[] = [];
+  const trackedLeagueIds = new Set(
+    getTrackedPreGameCompetitions()
+      .map((competition) => competition.apiBasketball?.leagueId)
+      .filter((leagueId): leagueId is number => Number.isFinite(leagueId))
+  );
 
   const gameRows: any[] = [];
-  for (const date of dates) {
-    const season = getSeasonStartYear(date);
-    const gamesEnvelope = await makeApiRequest<any>("games", {
-      league: NBA_LEAGUE_ID,
-      season,
-      date,
-    });
+  let firstGamesError: unknown = null;
 
-    if (Array.isArray(gamesEnvelope.response)) {
-      gameRows.push(...gamesEnvelope.response);
+  for (const date of dates) {
+    try {
+      const gamesEnvelope = await makeApiRequest<any>("games", { date });
+      if (Array.isArray(gamesEnvelope.response)) {
+        gameRows.push(...gamesEnvelope.response);
+      }
+    } catch (error) {
+      if (!firstGamesError) {
+        firstGamesError = error;
+      }
+      warnings.push(`${date}: ${getApiBasketballFriendlyMessage(error)}`);
     }
   }
 
+  if (gameRows.length === 0 && firstGamesError) {
+    throw firstGamesError;
+  }
+
+  const filteredGames = Array.from(
+    new Map(
+      gameRows
+        .filter((game) => {
+          const leagueId = Number(game?.league?.id);
+          if (!Number.isFinite(leagueId) || !trackedLeagueIds.has(leagueId)) {
+            return false;
+          }
+
+          const status = mapGameStatus(game?.status?.short, game?.status?.long);
+          return status === "not_started" || status === "in_play";
+        })
+        .map((game) => [Number(game?.id), game] as const)
+    ).values()
+  );
+
   const oddsByGameId = new Map<number, NbaMoneylineOdds>();
-  try {
-    for (const date of dates) {
-      const season = getSeasonStartYear(date);
-      const oddsEnvelope = await makeApiRequest<any>("odds", {
-        league: NBA_LEAGUE_ID,
-        season,
-        date,
-      });
+  const oddsTargets = filteredGames
+    .map((game) => Number(game?.id))
+    .filter((id): id is number => Number.isFinite(id));
 
-      for (const row of oddsEnvelope.response || []) {
-        const gameId = Number(row?.game?.id ?? row?.id ?? row?.fixture?.id);
-        if (!Number.isFinite(gameId)) continue;
+  const oddsLimit = getOddsEnrichLimit();
+  const limitedOddsTargets = oddsTargets.slice(0, oddsLimit);
 
-        const moneyline = extractMoneylineFromOddsRow(row);
+  if (oddsTargets.length > oddsLimit) {
+    warnings.push(
+      `${oddsTargets.length - oddsLimit} jogo(s) ficaram com odd padrao para conter custo e latencia do feed.`
+    );
+  }
+
+  let emittedOddsFailure = false;
+  await runWithConcurrency(
+    limitedOddsTargets,
+    getOddsEnrichConcurrency(),
+    async (gameId) => {
+      try {
+        const oddsEnvelope = await makeApiRequest<any>("odds", { game: gameId });
+        const row = Array.isArray(oddsEnvelope.response) ? oddsEnvelope.response[0] : null;
+        const moneyline = row ? extractMoneylineFromOddsRow(row) : null;
         if (moneyline) {
           oddsByGameId.set(gameId, moneyline);
         }
+      } catch (error) {
+        if (!emittedOddsFailure) {
+          warnings.push(getApiBasketballFriendlyMessage(error));
+          emittedOddsFailure = true;
+        }
       }
     }
-  } catch (error) {
-    warnings.push(getApiBasketballFriendlyMessage(error));
-  }
+  );
 
-  const normalizedMatches: NbaMatch[] = gameRows
+  const normalizedMatches: NbaMatch[] = filteredGames
     .map((game) => {
       const id = Number(game?.id);
       if (!Number.isFinite(id)) return null;
 
+      const competition = getBasketballCompetitionByApiBasketballLeagueId(Number(game?.league?.id));
       const homeTeam = game?.teams?.home?.name || "Time da Casa";
       const awayTeam = game?.teams?.away?.name || "Time Visitante";
-      const scheduledAt = game?.date || new Date().toISOString();
-      const tournament = game?.league?.name || "NBA";
+      const leagueLabel = competition?.displayName || game?.league?.name || "Basquete";
 
-      return {
-        id,
-        league: game?.league?.name || "NBA",
-        homeTeam,
-        awayTeam,
-        scheduledAt,
-        tournament,
-        status: mapGameStatus(game?.status?.short, game?.status?.long),
-        gameName: "NBA",
-        homeTeamId: Number(game?.teams?.home?.id) || undefined,
-        awayTeamId: Number(game?.teams?.away?.id) || undefined,
-        odds: {
-          moneyline: oddsByGameId.get(id) || DEFAULT_MONEYLINE,
+      return decorateMatchCompetition(
+        {
+          id,
+          league: leagueLabel,
+          country: game?.country?.name || game?.league?.country?.name || competition?.country,
+          homeTeam,
+          awayTeam,
+          homeTeamLogo: game?.teams?.home?.logo || undefined,
+          awayTeamLogo: game?.teams?.away?.logo || undefined,
+          scheduledAt: game?.date || new Date().toISOString(),
+          tournament: leagueLabel,
+          status: mapGameStatus(game?.status?.short, game?.status?.long),
+          gameName: leagueLabel,
+          homeTeamId: Number(game?.teams?.home?.id) || undefined,
+          awayTeamId: Number(game?.teams?.away?.id) || undefined,
+          odds: {
+            moneyline: oddsByGameId.get(id) || DEFAULT_MONEYLINE,
+          },
+          source: "feed",
         },
-        source: "feed",
-      } as NbaMatch;
+        competition
+      );
     })
     .filter((match): match is NbaMatch => Boolean(match))
-    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+    .sort((left, right) => {
+      const priorityGap = (left.competitionPriority ?? 999) - (right.competitionPriority ?? 999);
+      if (priorityGap !== 0) return priorityGap;
+      return new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime();
+    });
+
+  const defaultOddsCount = normalizedMatches.filter(
+    (match) =>
+      match.odds.moneyline.home === DEFAULT_MONEYLINE.home &&
+      match.odds.moneyline.away === DEFAULT_MONEYLINE.away
+  ).length;
+
+  if (defaultOddsCount > 0) {
+    warnings.push(
+      `${defaultOddsCount} jogo(s) vieram sem moneyline confirmado; odd padrao aplicada no MVP.`
+    );
+  }
+
+  if (normalizedMatches.length === 0) {
+    warnings.push("Nenhum jogo relevante das ligas monitoradas foi retornado para o periodo.");
+  }
 
   return {
     matches: normalizedMatches,
-    warnings,
+    warnings: dedupeWarnings(warnings),
   };
 };

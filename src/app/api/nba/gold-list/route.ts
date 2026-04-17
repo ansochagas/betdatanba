@@ -4,7 +4,8 @@ import { getMockNbaMatches } from "@/modules/nba/mock";
 import {
   fetchNbaMatchesFromProvider,
   fetchNbaPlayerAnalysisFromProvider,
-  getNbaProvider,
+  getNbaGoldListProvider,
+  getNbaPlayerAnalysisProvider,
   getNbaProviderFriendlyMessage,
 } from "@/modules/nba/provider";
 import {
@@ -14,6 +15,7 @@ import {
   NbaTeamSeasonStatsResponse,
 } from "@/modules/nba/types";
 import { buildNbaGoldList } from "@/modules/nba/gold-list";
+import { isNbaMatch } from "@/modules/nba/competitions";
 import {
   fetchNbaCurrentSeasonTeamStatsFromBetsApi,
   getCurrentNbaSeasonRange,
@@ -64,7 +66,7 @@ const loadTeamStatsForGoldList = async (warnings: string[]) => {
 
 const loadPlayerAnalysis = async (
   match: NbaMatch,
-  provider: ReturnType<typeof getNbaProvider>,
+  provider: ReturnType<typeof getNbaPlayerAnalysisProvider>,
   warnings: string[],
   force: boolean
 ): Promise<NbaPlayerAnalysisResponse | null> => {
@@ -134,10 +136,11 @@ export async function GET(request: NextRequest) {
   const force = searchParams.get("force") === "true";
   const rawDays = Number(searchParams.get("days") ?? "2");
   const days = Number.isFinite(rawDays) ? Math.max(1, Math.min(rawDays, 3)) : 2;
-  const provider = getNbaProvider();
+  const matchesProvider = getNbaGoldListProvider();
+  const playerAnalysisProvider = getNbaPlayerAnalysisProvider();
 
   const dateKey = formatDateInBrt(new Date());
-  const cacheKey = `gold-list-v6-${provider}-${dateKey}-d${days}`;
+  const cacheKey = `gold-list-v7-${matchesProvider}-${playerAnalysisProvider}-${dateKey}-d${days}`;
 
   if (!force) {
     const cached = await advancedCache.get<NbaGoldListResponse>("nba", cacheKey);
@@ -157,10 +160,10 @@ export async function GET(request: NextRequest) {
   let fallback = false;
 
   try {
-    const result = await fetchNbaMatchesFromProvider(days, provider);
+    const result = await fetchNbaMatchesFromProvider(days, matchesProvider);
     warnings.push(...result.warnings);
 
-    const todayMatches = filterTodayMatches(result.matches);
+    const todayMatches = filterTodayMatches(result.matches.filter((match) => isNbaMatch(match)));
     const teamStats = await loadTeamStatsForGoldList(warnings);
 
     if (!todayMatches.length) {
@@ -169,7 +172,7 @@ export async function GET(request: NextRequest) {
 
     const analyses = await Promise.all(
       todayMatches.map(async (match) => {
-        const analysis = await loadPlayerAnalysis(match, provider, warnings, force);
+        const analysis = await loadPlayerAnalysis(match, playerAnalysisProvider, warnings, force);
         if (!analysis) return null;
         return { match, analysis };
       })
@@ -203,7 +206,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     dataSource = "mock";
     fallback = true;
-    warnings.push(getNbaProviderFriendlyMessage(error, provider));
+    warnings.push(getNbaProviderFriendlyMessage(error, matchesProvider));
 
     const mockMatches = filterTodayMatches(getMockNbaMatches(days));
     const goldList = buildNbaGoldList(mockMatches, {

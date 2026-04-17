@@ -10,6 +10,7 @@ export type NbaMatch = {
   id: number;
   bet365Id?: string;
   league: string;
+  country?: string;
   homeTeam: string;
   awayTeam: string;
   homeTeamLogo?: string;
@@ -17,7 +18,11 @@ export type NbaMatch = {
   scheduledAt: string;
   tournament: string;
   status: string;
-  gameName: "NBA";
+  gameName: string;
+  competitionKey?: string;
+  competitionPriority?: number;
+  supportsGoldList?: boolean;
+  supportsPlayerAnalysis?: boolean;
   homeTeamId?: number;
   awayTeamId?: number;
   odds: {

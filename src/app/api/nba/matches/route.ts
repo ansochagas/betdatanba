@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMockNbaMatches } from "@/modules/nba/mock";
 import {
   fetchNbaMatchesFromProvider,
-  getNbaProvider,
+  getNbaPreGameProvider,
   getNbaProviderFriendlyMessage,
 } from "@/modules/nba/provider";
 import { NbaMatch } from "@/modules/nba/types";
@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
   const rawDays = Number(searchParams.get("days") ?? "2");
   const force = searchParams.get("force") === "true";
   const days = Number.isFinite(rawDays) ? Math.max(1, Math.min(rawDays, 7)) : 2;
-  const provider = getNbaProvider();
+  const provider = getNbaPreGameProvider();
 
-  const cacheKey = `matches-v3-${provider}-${days}`;
-  const backupKey = `matches-v3-backup-${provider}-${days}`;
+  const cacheKey = `matches-v4-${provider}-${days}`;
+  const backupKey = `matches-v4-backup-${provider}-${days}`;
   const startedAt = Date.now();
 
   if (!force) {

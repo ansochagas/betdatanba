@@ -8,12 +8,16 @@ type NbaMatchCard = {
   id: number;
   bet365Id?: string;
   league: string;
+  country?: string;
   homeTeam: string;
   awayTeam: string;
   homeTeamLogo?: string;
   awayTeamLogo?: string;
   scheduledAt: string;
   status: string;
+  competitionKey?: string;
+  competitionPriority?: number;
+  supportsPlayerAnalysis?: boolean;
   odds: {
     moneyline: {
       home: number;
@@ -57,6 +61,18 @@ type TeamStatsResponse = {
   };
 };
 
+type LeagueGroup = {
+  league: string;
+  matches: NbaMatchCard[];
+  priority: number;
+};
+
+type DayGroup = {
+  dayKey: string;
+  totalMatches: number;
+  leagueGroups: LeagueGroup[];
+};
+
 const emptyTeamStatsFallback = (warning: string): TeamStatsResponse => ({
   teams: [],
   snapshot: {
@@ -97,7 +113,7 @@ const formatDaySectionLabel = (dayKey: string): string => {
   const tomorrowKey = formatBrtDayKey(tomorrow.toISOString());
 
   if (dayKey === todayKey) return "Hoje";
-  if (dayKey === tomorrowKey) return "Amanhã";
+  if (dayKey === tomorrowKey) return "Amanha";
 
   const [year, month, day] = dayKey.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -159,8 +175,7 @@ const buildPreGameInsight = (
   }
 
   const winRateEdge = homeStats.winRate - awayStats.winRate;
-  const formEdge =
-    homeStats.last10Record.wins / 10 - awayStats.last10Record.wins / 10;
+  const formEdge = homeStats.last10Record.wins / 10 - awayStats.last10Record.wins / 10;
   const restEdge = ((homeStats.restDays ?? 1) - (awayStats.restDays ?? 1)) / 3;
 
   const projectedSpread = Number(
@@ -207,7 +222,7 @@ export default function NbaAnalysisTool() {
       const statsPayload = await statsResponse.json();
 
       if (!matchesPayload.success) {
-        throw new Error(matchesPayload.error || "Falha ao carregar jogos NBA.");
+        throw new Error(matchesPayload.error || "Falha ao carregar jogos de basquete.");
       }
 
       setMatches(Array.isArray(matchesPayload.data) ? matchesPayload.data : []);
@@ -217,16 +232,16 @@ export default function NbaAnalysisTool() {
       } else {
         setTeamStats(
           emptyTeamStatsFallback(
-            statsPayload?.error || "Estatísticas da temporada indisponíveis no momento."
+            statsPayload?.error || "Estatisticas da temporada indisponiveis no momento."
           )
         );
       }
-      } catch (loadError) {
-        console.error("Erro ao carregar módulo pré-jogo NBA:", loadError);
-        setError("Não conseguimos carregar o pré-jogo da NBA no momento.");
-      } finally {
-        setLoading(false);
-      }
+    } catch (loadError) {
+      console.error("Erro ao carregar modulo pre-jogo de basquete:", loadError);
+      setError("Nao conseguimos carregar o pre-jogo de basquete no momento.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -243,17 +258,54 @@ export default function NbaAnalysisTool() {
     return index;
   }, [teamStats]);
 
-  const groupedMatches = useMemo(() => {
-    const groups = new Map<string, NbaMatchCard[]>();
+  const groupedMatches = useMemo<DayGroup[]>(() => {
+    const dayGroups = new Map<string, Map<string, NbaMatchCard[]>>();
 
     for (const match of matches) {
-      const key = formatBrtDayKey(match.scheduledAt);
-      const existing = groups.get(key) || [];
-      existing.push(match);
-      groups.set(key, existing);
+      const dayKey = formatBrtDayKey(match.scheduledAt);
+      const leagueKey = match.league || "Outras ligas";
+
+      if (!dayGroups.has(dayKey)) {
+        dayGroups.set(dayKey, new Map());
+      }
+
+      const leagues = dayGroups.get(dayKey)!;
+      const existingLeagueMatches = leagues.get(leagueKey) || [];
+      existingLeagueMatches.push(match);
+      leagues.set(leagueKey, existingLeagueMatches);
     }
 
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+    return Array.from(dayGroups.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dayKey, leagues]) => {
+        const leagueGroups = Array.from(leagues.entries())
+          .map(([league, leagueMatches]) => ({
+            league,
+            matches: [...leagueMatches].sort((left, right) => {
+              const priorityGap =
+                (left.competitionPriority ?? 999) - (right.competitionPriority ?? 999);
+              if (priorityGap !== 0) return priorityGap;
+              return new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime();
+            }),
+            priority: Math.min(...leagueMatches.map((match) => match.competitionPriority ?? 999)),
+          }))
+          .sort((left, right) => {
+            if (left.priority !== right.priority) {
+              return left.priority - right.priority;
+            }
+
+            return left.league.localeCompare(right.league);
+          });
+
+        return {
+          dayKey,
+          totalMatches: leagueGroups.reduce(
+            (accumulator, group) => accumulator + group.matches.length,
+            0
+          ),
+          leagueGroups,
+        };
+      });
   }, [matches]);
 
   const findTeamStats = useCallback(
@@ -265,8 +317,8 @@ export default function NbaAnalysisTool() {
       const byCanonical = statsIndex.get(normalizeTeam(identity.canonicalName));
       if (byCanonical) return byCanonical;
 
+      const teamKey = normalizeTeam(teamName);
       for (const [key, value] of statsIndex.entries()) {
-        const teamKey = normalizeTeam(teamName);
         if (key.includes(teamKey) || teamKey.includes(key)) {
           return value;
         }
@@ -280,7 +332,7 @@ export default function NbaAnalysisTool() {
   if (loading) {
     return (
       <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-6 text-center text-zinc-300 sm:p-8">
-        Carregando jogos e estatísticas reais da temporada...
+        Carregando jogos e estatisticas reais da temporada...
       </div>
     );
   }
@@ -288,7 +340,7 @@ export default function NbaAnalysisTool() {
   if (error) {
     return (
       <div className="rounded-xl border border-red-500/50 bg-red-900/20 p-6 text-red-200">
-        <p className="font-semibold">Pré-jogo indisponível no momento</p>
+        <p className="font-semibold">Pre-jogo indisponivel no momento</p>
         <p className="mt-2 text-sm">{error}</p>
         <button
           onClick={fetchData}
@@ -304,185 +356,282 @@ export default function NbaAnalysisTool() {
     <div className="space-y-5">
       <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-5">
         <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
-          AGENDA NBA - HOJE E AMANHÃ
+          AGENDA DE BASQUETE - HOJE E AMANHA
         </h2>
+        <p className="mt-2 text-sm text-zinc-400">
+          Principais ligas monitoradas: NBA, NBB, EuroLeague, EuroCup, ACB e mercados
+          internacionais selecionados.
+        </p>
       </div>
 
-      <div className="space-y-4">
-        {groupedMatches.map(([dayKey, dateMatches]) => (
-          <section key={dayKey} className="space-y-4">
-            <div className="rounded-xl border border-zinc-700 bg-zinc-900/40 px-4 py-3">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-lg font-bold text-white">
-                  {formatDaySectionLabel(dayKey)}
-                </h3>
-                <p className="text-xs uppercase tracking-wide text-zinc-400">
-                  {dateMatches.length} jogo(s) na agenda
-                </p>
+      {groupedMatches.length === 0 ? (
+        <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-6 text-sm text-zinc-400">
+          Nenhum jogo elegivel foi encontrado para hoje e amanha nas ligas monitoradas.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groupedMatches.map(({ dayKey, totalMatches, leagueGroups }) => (
+            <section key={dayKey} className="space-y-4">
+              <div className="rounded-xl border border-zinc-700 bg-zinc-900/40 px-4 py-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-lg font-bold text-white">{formatDaySectionLabel(dayKey)}</h3>
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">
+                    {totalMatches} jogo(s) na agenda
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {dateMatches.map((match) => {
-              const homeStats = findTeamStats(match.homeTeam);
-              const awayStats = findTeamStats(match.awayTeam);
-              const insight = buildPreGameInsight(match, homeStats, awayStats);
-
-              return (
-                <article
-                  key={match.id}
-                  className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-4 shadow-lg shadow-black/20 sm:p-5"
-                >
-                  <div className="flex flex-col gap-3 border-b border-zinc-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-zinc-400">{match.league}</p>
-                      <h3 className="text-lg font-bold text-white sm:text-xl">
-                        {match.homeTeam} vs {match.awayTeam}
-                      </h3>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-[11px] uppercase tracking-wide text-zinc-500">Horário BRT</p>
-                      <p className="text-base font-semibold text-zinc-100">{formatBrtDate(match.scheduledAt)}</p>
-                    </div>
+              {leagueGroups.map(({ league, matches: leagueMatches }) => (
+                <div key={`${dayKey}-${league}`} className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-2">
+                    <p className="text-sm font-semibold text-zinc-100">{league}</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                      {leagueMatches.length} jogo(s)
+                    </p>
                   </div>
 
-                  <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-4 text-xs text-zinc-300">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-sm font-bold tracking-wide text-zinc-100">DADOS DO CONFRONTO</p>
-                      <Link
-                        href={buildPlayerAnalysisHref(match)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex w-full items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-100 transition hover:border-orange-300/50 hover:bg-orange-500/20 sm:w-auto"
+                  {leagueMatches.map((match) => {
+                    const homeStats = findTeamStats(match.homeTeam);
+                    const awayStats = findTeamStats(match.awayTeam);
+                    const insight = buildPreGameInsight(match, homeStats, awayStats);
+
+                    return (
+                      <article
+                        key={match.id}
+                        className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-4 shadow-lg shadow-black/20 sm:p-5"
                       >
-                        Análise dos jogadores
-                      </Link>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Moneyline Casa</p>
-                        <p className="mt-1 text-lg font-bold text-zinc-100">{displayOdd(match.odds.moneyline.home)}</p>
-                      </div>
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Moneyline Fora</p>
-                        <p className="mt-1 text-lg font-bold text-zinc-100">{displayOdd(match.odds.moneyline.away)}</p>
-                      </div>
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Spread projetado</p>
-                        <p className="mt-1 text-lg font-bold text-zinc-100">
-                          {insight.projectedSpread !== null ? insight.projectedSpread : "--"}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-zinc-500">Total projetado</p>
-                        <p className="mt-1 text-lg font-bold text-zinc-100">
-                          {insight.projectedTotal !== null ? insight.projectedTotal : "--"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    {[
-                      {
-                        key: "home",
-                        teamName: match.homeTeam,
-                        logoUrl: match.homeTeamLogo || getNbaTeamIdentity(match.homeTeam).logoUrl,
-                        odd: match.odds.moneyline.home,
-                        stats: homeStats,
-                      },
-                      {
-                        key: "away",
-                        teamName: match.awayTeam,
-                        logoUrl: match.awayTeamLogo || getNbaTeamIdentity(match.awayTeam).logoUrl,
-                        odd: match.odds.moneyline.away,
-                        stats: awayStats,
-                      },
-                    ].map((team) => (
-                      <div key={team.key} className="rounded-lg border border-zinc-700 bg-zinc-950/80 p-4">
-                        <div className="flex items-start gap-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={team.logoUrl}
-                            alt={`${team.teamName} logo`}
-                            className="h-10 w-10 rounded-md bg-zinc-900 object-contain"
-                          />
-                          <div className="min-w-0">
-                            <p className="break-words text-base font-bold text-white sm:text-lg">{team.teamName}</p>
-                            <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                              Moneyline: <span className="font-mono text-zinc-200">{displayOdd(team.odd)}</span>
+                        <div className="flex flex-col gap-3 border-b border-zinc-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-zinc-400">
+                              {match.country ? `${match.league} - ${match.country}` : match.league}
+                            </p>
+                            <h3 className="text-lg font-bold text-white sm:text-xl">
+                              {match.homeTeam} vs {match.awayTeam}
+                            </h3>
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                              Horario BRT
+                            </p>
+                            <p className="text-base font-semibold text-zinc-100">
+                              {formatBrtDate(match.scheduledAt)}
                             </p>
                           </div>
                         </div>
 
-                        {team.stats ? (
-                          <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Classificação atual</p>
-                              <p className="mt-1 text-lg font-bold text-zinc-100">#{team.stats.rank.overall}</p>
-                            </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Winrate</p>
-                              <p className="mt-1 text-lg font-bold text-zinc-100">{formatPct(team.stats.winRate)}</p>
-                            </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Média de pontos a favor</p>
-                              <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsFor.toFixed(1)}</p>
-                            </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Média de pontos contra</p>
-                              <p className="mt-1 text-lg font-bold text-zinc-100">{team.stats.averagePointsAgainst.toFixed(1)}</p>
-                            </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Campanha</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.record.wins}-{team.stats.record.losses}</p>
-                            </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Descanso</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{formatRest(team.stats.restDays)}</p>
-                            </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Casa</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.homeRecord.wins}-{team.stats.homeRecord.losses}</p>
-                            </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Fora</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">{team.stats.awayRecord.wins}-{team.stats.awayRecord.losses}</p>
-                            </div>
-                            <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">últimos 10</p>
-                              <p className="mt-1 text-base font-semibold text-zinc-100">
-                                {team.stats.last10Record.wins}-{team.stats.last10Record.losses} ({team.stats.streak.label})
+                        <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-4 text-xs text-zinc-300">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm font-bold tracking-wide text-zinc-100">
+                              DADOS DO CONFRONTO
+                            </p>
+                            {match.supportsPlayerAnalysis ? (
+                              <Link
+                                href={buildPlayerAnalysisHref(match)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex w-full items-center justify-center rounded-full border border-orange-400/30 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-100 transition hover:border-orange-300/50 hover:bg-orange-500/20 sm:w-auto"
+                              >
+                                Analise dos jogadores
+                              </Link>
+                            ) : (
+                              <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                                Analise de jogadores disponivel apenas para NBA nesta fase
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                Moneyline Casa
+                              </p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">
+                                {displayOdd(match.odds.moneyline.home)}
                               </p>
                             </div>
-                            <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
-                              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-400">Placar dos últimos 10</p>
-                              {team.stats.last10Games?.length ? (
-                                <div className="mt-2 space-y-1">
-                                  {team.stats.last10Games.map((game, index) => (
-                                    <p key={`${team.key}-g${index}`} className="rounded border border-zinc-800 bg-zinc-950/80 px-2 py-1 text-[10px] text-zinc-200 sm:text-[11px]">
-                                      {formatRecentGame(game)}
-                                    </p>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="mt-1 text-[11px] text-zinc-500">Sem jogos suficientes para exibir os últimos 10 placares.</p>
-                              )}
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                Moneyline Fora
+                              </p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">
+                                {displayOdd(match.odds.moneyline.away)}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                Spread projetado
+                              </p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">
+                                {insight.projectedSpread !== null ? insight.projectedSpread : "--"}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                Total projetado
+                              </p>
+                              <p className="mt-1 text-lg font-bold text-zinc-100">
+                                {insight.projectedTotal !== null ? insight.projectedTotal : "--"}
+                              </p>
                             </div>
                           </div>
-                        ) : (
-                          <p className="mt-3 text-xs text-zinc-500">
-                            Estatísticas da temporada ainda não disponíveis para este time.
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              );
-            })}
-          </section>
-        ))}
-      </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {[
+                            {
+                              key: "home",
+                              teamName: match.homeTeam,
+                              logoUrl:
+                                match.homeTeamLogo || getNbaTeamIdentity(match.homeTeam).logoUrl,
+                              odd: match.odds.moneyline.home,
+                              stats: homeStats,
+                            },
+                            {
+                              key: "away",
+                              teamName: match.awayTeam,
+                              logoUrl:
+                                match.awayTeamLogo || getNbaTeamIdentity(match.awayTeam).logoUrl,
+                              odd: match.odds.moneyline.away,
+                              stats: awayStats,
+                            },
+                          ].map((team) => (
+                            <div
+                              key={team.key}
+                              className="rounded-lg border border-zinc-700 bg-zinc-950/80 p-4"
+                            >
+                              <div className="flex items-start gap-3">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={team.logoUrl}
+                                  alt={`${team.teamName} logo`}
+                                  className="h-10 w-10 rounded-md bg-zinc-900 object-contain"
+                                />
+                                <div className="min-w-0">
+                                  <p className="break-words text-base font-bold text-white sm:text-lg">
+                                    {team.teamName}
+                                  </p>
+                                  <p className="text-xs uppercase tracking-wide text-zinc-400">
+                                    Moneyline:{" "}
+                                    <span className="font-mono text-zinc-200">
+                                      {displayOdd(team.odd)}
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
+
+                              {team.stats ? (
+                                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Classificacao atual
+                                    </p>
+                                    <p className="mt-1 text-lg font-bold text-zinc-100">
+                                      #{team.stats.rank.overall}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Winrate
+                                    </p>
+                                    <p className="mt-1 text-lg font-bold text-zinc-100">
+                                      {formatPct(team.stats.winRate)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Media de pontos a favor
+                                    </p>
+                                    <p className="mt-1 text-lg font-bold text-zinc-100">
+                                      {team.stats.averagePointsFor.toFixed(1)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Media de pontos contra
+                                    </p>
+                                    <p className="mt-1 text-lg font-bold text-zinc-100">
+                                      {team.stats.averagePointsAgainst.toFixed(1)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Campanha
+                                    </p>
+                                    <p className="mt-1 text-base font-semibold text-zinc-100">
+                                      {team.stats.record.wins}-{team.stats.record.losses}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Descanso
+                                    </p>
+                                    <p className="mt-1 text-base font-semibold text-zinc-100">
+                                      {formatRest(team.stats.restDays)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Casa
+                                    </p>
+                                    <p className="mt-1 text-base font-semibold text-zinc-100">
+                                      {team.stats.homeRecord.wins}-{team.stats.homeRecord.losses}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Fora
+                                    </p>
+                                    <p className="mt-1 text-base font-semibold text-zinc-100">
+                                      {team.stats.awayRecord.wins}-{team.stats.awayRecord.losses}
+                                    </p>
+                                  </div>
+                                  <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                                      Ultimos 10
+                                    </p>
+                                    <p className="mt-1 text-base font-semibold text-zinc-100">
+                                      {team.stats.last10Record.wins}-{team.stats.last10Record.losses} ({team.stats.streak.label})
+                                    </p>
+                                  </div>
+                                  <div className="col-span-2 rounded-lg border border-zinc-800 bg-zinc-900/90 p-3">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-400">
+                                      Placar dos ultimos 10
+                                    </p>
+                                    {team.stats.last10Games?.length ? (
+                                      <div className="mt-2 space-y-1">
+                                        {team.stats.last10Games.map((game, index) => (
+                                          <p
+                                            key={`${team.key}-g${index}`}
+                                            className="rounded border border-zinc-800 bg-zinc-950/80 px-2 py-1 text-[10px] text-zinc-200 sm:text-[11px]"
+                                          >
+                                            {formatRecentGame(game)}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="mt-1 text-[11px] text-zinc-500">
+                                        Sem jogos suficientes para exibir os ultimos 10 placares.
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="mt-3 text-xs text-zinc-500">
+                                  Estatisticas detalhadas ainda nao estao disponiveis para esta liga.
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ))}
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

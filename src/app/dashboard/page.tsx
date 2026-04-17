@@ -51,7 +51,7 @@ function DashboardContent() {
     {
       id: "analysis" as Tool,
       name: "Pré-jogo",
-      description: "Agenda e contexto dos jogos NBA",
+      description: "Agenda e contexto das principais ligas de basquete",
       icon: "A",
       comingSoon: false,
     },
