@@ -1274,6 +1274,39 @@ const toOptionalText = (value: unknown): string | null => {
   return text.length > 0 ? text : null;
 };
 
+const normalizePositionKey = (value?: string | null): string =>
+  (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+
+const SOCCER_POSITION_HINTS = new Set([
+  "goalkeeper",
+  "keeper",
+  "defender",
+  "midfielder",
+  "winger",
+  "striker",
+  "fullback",
+  "centreback",
+  "centerback",
+]);
+
+const isLikelyBasketballRoster = (seeds: RosterSeed[]): boolean => {
+  if (seeds.length === 0) return true;
+  if (seeds.length > 25) return false;
+
+  for (const seed of seeds) {
+    const positionKey = normalizePositionKey(seed.position);
+    if (positionKey && SOCCER_POSITION_HINTS.has(positionKey)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const pushRosterSeed = (
   store: Map<string, RosterSeed>,
   teamName: string,
