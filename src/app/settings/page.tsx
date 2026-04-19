@@ -116,7 +116,17 @@ export default function SettingsPage() {
 
       setLinkCode(data.data.linkCode);
       setLinkExpiresAt(data.data.expiresAt || null);
-      setFeedback("Codigo gerado. Abra o bot e envie a chave para concluir a vinculacao.");
+
+      try {
+        await navigator.clipboard.writeText(data.data.linkCode);
+        setFeedback(
+          "Codigo gerado e copiado. Agora abra o bot, cole a mensagem no chat e toque em enviar."
+        );
+      } catch {
+        setFeedback(
+          "Codigo gerado. Agora abra o bot, copie o codigo abaixo, cole no chat e toque em enviar."
+        );
+      }
 
       if (data.data.bot) {
         setTelegramStatus((current) => ({
@@ -187,7 +197,9 @@ export default function SettingsPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">Configuracoes</h1>
-          <p className="text-gray-400">Gerencie suas preferencias e integracoes da BETDATA NBA.</p>
+          <p className="text-gray-400">
+            Gerencie suas preferencias e integracoes da BETDATA NBA.
+          </p>
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
@@ -197,7 +209,7 @@ export default function SettingsPage() {
                 <span className="text-blue-500">Telegram</span>
               </h2>
               <p className="text-sm text-gray-400 mt-1">
-                Vincule sua conta ao {botLabel} para receber notificacoes e, na proxima etapa, alertas live.
+                Vincule sua conta ao {botLabel} para receber notificacoes. O processo leva menos de 1 minuto.
               </p>
             </div>
             <div
@@ -224,12 +236,16 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 text-sm text-zinc-300">
               <div className="flex flex-wrap items-center gap-3">
-                <span>Bot:</span>
+                <span>Bot oficial:</span>
                 <strong className="text-white">{telegramStatus.bot.name}</strong>
                 {telegramStatus.bot.username && (
                   <span className="text-blue-300">@{telegramStatus.bot.username}</span>
                 )}
               </div>
+              <p className="mt-2 text-sm text-zinc-400">
+                Se o bot nao abrir pelo botao abaixo, abra o Telegram e pesquise manualmente por{" "}
+                <span className="text-white font-medium">{botLabel}</span>.
+              </p>
               {telegramStatus.bot.url && (
                 <a
                   href={telegramStatus.bot.url}
@@ -237,7 +253,7 @@ export default function SettingsPage() {
                   rel="noreferrer"
                   className="mt-3 inline-flex text-orange-400 hover:text-orange-300"
                 >
-                  Abrir bot no Telegram
+                  Abrir conversa no Telegram
                 </a>
               )}
             </div>
@@ -245,13 +261,16 @@ export default function SettingsPage() {
             {!telegramStatus.linked && (
               <div className="space-y-4 border-t border-zinc-800 pt-4">
                 <div>
-                  <h3 className="font-semibold mb-2">Como vincular sua conta</h3>
+                  <h3 className="font-semibold mb-2">Passo a passo da vinculacao</h3>
                   <ol className="space-y-2 text-sm text-gray-400 list-decimal list-inside">
                     <li>Clique em "Gerar codigo de vinculacao".</li>
-                    <li>Copie o codigo LINK_...</li>
-                    <li>Abra o bot oficial no Telegram.</li>
-                    <li>Envie o codigo no chat do bot.</li>
-                    <li>Volte aqui e clique em "Atualizar status" para confirmar.</li>
+                    <li>O site vai mostrar o codigo e tentar copiar automaticamente para voce.</li>
+                    <li>
+                      Clique em "Abrir conversa no Telegram". Se preferir, abra o Telegram e pesquise por{" "}
+                      <span className="text-white">{botLabel}</span>.
+                    </li>
+                    <li>Cole o codigo no chat do bot e toque em enviar.</li>
+                    <li>Volte para esta tela e clique em "Atualizar status".</li>
                   </ol>
                 </div>
 
@@ -274,18 +293,20 @@ export default function SettingsPage() {
                   {telegramStatus.bot.url && (
                     <a
                       href={telegramStatus.bot.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="border border-orange-700 bg-orange-950/40 hover:bg-orange-950/70 text-orange-100 px-4 py-2 rounded-lg transition-colors"
-                    >
-                      Abrir {botLabel}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="border border-orange-700 bg-orange-950/40 hover:bg-orange-950/70 text-orange-100 px-4 py-2 rounded-lg transition-colors"
+                  >
+                      Abrir conversa no Telegram
                     </a>
                   )}
                 </div>
 
                 {linkCode && (
                   <div className="rounded-lg border border-zinc-800 bg-black/30 p-4">
-                    <p className="text-sm text-zinc-400 mb-2">Envie este codigo ao bot:</p>
+                    <p className="text-sm text-zinc-400 mb-2">
+                      Esta e a mensagem que voce deve enviar ao bot:
+                    </p>
                     <div className="flex flex-wrap items-center gap-3">
                       <code className="text-lg font-semibold text-white tracking-wide">{linkCode}</code>
                       <button
@@ -295,6 +316,9 @@ export default function SettingsPage() {
                         Copiar codigo
                       </button>
                     </div>
+                    <p className="mt-3 text-xs text-zinc-500">
+                      Se o codigo ja tiver sido copiado automaticamente, basta abrir o bot, colar no chat e enviar.
+                    </p>
                     {linkExpiresAt && (
                       <p className="mt-2 text-xs text-zinc-500">
                         Expira em: {new Date(linkExpiresAt).toLocaleString("pt-BR")}
@@ -323,7 +347,7 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="font-semibold mb-2">Estado atual da integracao</h3>
                   <p className="text-sm text-gray-400">
-                    A infraestrutura do bot esta pronta para vinculo e notificacoes manuais. Os alertas live serao adicionados na proxima etapa.
+                    Sua conta ja esta conectada ao Telegram. As notificacoes manuais ja podem ser usadas. Os alertas live entram na proxima etapa.
                   </p>
                 </div>
 

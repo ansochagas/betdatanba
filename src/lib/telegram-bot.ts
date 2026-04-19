@@ -81,11 +81,12 @@ class TelegramBot {
         "Para vincular sua conta:",
         `1. Entre em ${SETTINGS_URL}`,
         '2. Clique em "Gerar codigo de vinculacao"',
-        "3. Envie aqui o codigo no formato LINK_XXXXXXXX",
+        "3. Copie o codigo LINK_XXXXXXXX que aparece no site",
+        "4. Volte para este chat, cole o codigo e envie",
       ];
 
       if (BOT_USERNAME) {
-        lines.push("", `Bot: @${BOT_USERNAME}`);
+        lines.push("", `Se precisar achar este bot depois, pesquise por @${BOT_USERNAME} no Telegram.`);
       }
 
       await ctx.reply(lines.join("\n"));
@@ -113,9 +114,14 @@ class TelegramBot {
           "Para vincular sua conta:",
           `1. Entre em ${SETTINGS_URL}`,
           '2. Clique em "Gerar codigo de vinculacao"',
-          "3. Copie o codigo LINK_...",
-          "4. Envie o codigo aqui no chat",
-        ].join("\n")
+          "3. Copie o codigo LINK_... mostrado no site",
+          "4. Volte para este chat, cole o codigo e envie",
+          BOT_USERNAME
+            ? `5. Se nao encontrar esta conversa, pesquise por @${BOT_USERNAME} no Telegram`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
       );
     });
 
@@ -224,6 +230,7 @@ class TelegramBot {
             "",
             `Sua conta BETDATA NBA agora esta conectada ao ${BOT_NAME}.`,
             "Use /status para confirmar seu plano.",
+            "Se quiser, volte ao site e clique em Atualizar status para ver a confirmacao na tela.",
           ].join("\n")
         );
       } catch (error) {
