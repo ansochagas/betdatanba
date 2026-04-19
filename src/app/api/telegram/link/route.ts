@@ -1,38 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { getServerSession } from "next-auth";
+
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { randomBytes } from "crypto";
+import { linkTelegramAccount } from "@/lib/telegram-account";
+import { getTelegramBotIdentity } from "@/lib/telegram-config";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
-    // Verificar se usuário está logado
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json(
-        { success: false, error: "Usuário não autenticado" },
+        { success: false, error: "Usuario nao autenticado" },
         { status: 401 }
       );
     }
 
-    // Buscar usuário no banco
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
     });
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: "Usuário não encontrado" },
+        { success: false, error: "Usuario nao encontrado" },
         { status: 404 }
       );
     }
 
-    // Gerar código único de vinculação
-    const linkCode = `LINK_${randomBytes(4).toString("hex").toUpperCase()}`;
+    await prisma.telegramLinkCode.deleteMany({
+      where: { userId: user.id },
+    });
 
-    // Armazenar código temporário com expiração (5 minutos)
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutos
+    const linkCode = `LINK_${randomBytes(4).toString("hex").toUpperCase()}`;
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await prisma.telegramLinkCode.create({
       data: {
@@ -42,18 +44,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Retornar código para o usuário
+    const bot = await getTelegramBotIdentity();
+
     return NextResponse.json({
       success: true,
       data: {
         linkCode,
-        instructions:
-          "Guarde este código. Você usará no bot oficial da BETDATA NBA assim que a integração for liberada.",
-        expiresIn: "5 minutos",
+        expiresAt: expiresAt.toISOString(),
+        bot,
+        instructions: bot.url
+          ? `Abra ${bot.url} e envie este codigo ao bot.`
+          : "Abra o bot oficial da BETDATA NBA e envie este codigo.",
       },
     });
-  } catch (error: any) {
-    console.error("Erro ao gerar código de vinculação:", error);
+  } catch (error) {
+    console.error("[telegram-link] Erro ao gerar codigo:", error);
     return NextResponse.json(
       { success: false, error: "Erro interno do servidor" },
       { status: 500 }
@@ -63,119 +68,27 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // ❌ REMOVIDO: Não verificar sessão aqui - o bot não tem sessão válida
-    // A validação é feita apenas pelo código de vinculação
-
     const { linkCode, telegramId, chatId } = await request.json();
-
-    if (!linkCode || !telegramId || !chatId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Parâmetros obrigatórios: linkCode, telegramId, chatId",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Buscar código de vinculação válido e não expirado
-    const linkCodeRecord = await prisma.telegramLinkCode.findUnique({
-      where: { code: linkCode },
-      include: { user: true },
+    const result = await linkTelegramAccount({
+      linkCode,
+      telegramId,
+      chatId,
     });
 
-    if (!linkCodeRecord) {
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, error: "Código de vinculação inválido ou expirado" },
-        { status: 400 }
+        { success: false, error: result.error },
+        { status: result.status }
       );
     }
-
-    // Verificar se o código não expirou
-    if (linkCodeRecord.expiresAt < new Date()) {
-      // Remover código expirado
-      await prisma.telegramLinkCode.delete({
-        where: { id: linkCodeRecord.id },
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Código de vinculação expirado. Gere um novo código.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const user = linkCodeRecord.user;
-
-    // ❌ REMOVIDO: Não verificar se usuário logado é o mesmo - o bot não tem sessão
-
-    // ✅ CORREÇÃO: Verificar se já está vinculado
-    if (user.telegramId) {
-      return NextResponse.json(
-        { success: false, error: "Conta já vinculada ao Telegram" },
-        { status: 400 }
-      );
-    }
-
-    // ✅ CORREÇÃO: Verificar se o telegramId já está vinculado a outro usuário
-    const existingTelegramUser = await prisma.user.findFirst({
-      where: { telegramId: telegramId.toString() },
-    });
-
-    if (existingTelegramUser && existingTelegramUser.id !== user.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Este Telegram já está vinculado a outra conta",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Vincular conta
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { telegramId: telegramId.toString() },
-    });
-
-    // Criar ou atualizar configuração do Telegram
-    await prisma.telegramConfig.upsert({
-      where: { userId: user.id },
-      update: {
-        chatId: chatId.toString(),
-        alertsEnabled: true,
-        favoriteTeams: JSON.stringify([]),
-        alertTypes: JSON.stringify(["games", "odds", "analysis"]),
-        timezone: "America/Sao_Paulo",
-        language: "pt-BR",
-      },
-      create: {
-        userId: user.id,
-        chatId: chatId.toString(),
-        alertsEnabled: true,
-        favoriteTeams: JSON.stringify([]),
-        alertTypes: JSON.stringify(["games", "odds", "analysis"]),
-        timezone: "America/Sao_Paulo",
-        language: "pt-BR",
-      },
-    });
-
-    // Remover código usado
-    await prisma.telegramLinkCode.delete({
-      where: { id: linkCodeRecord.id },
-    });
 
     return NextResponse.json({
       success: true,
-      message: "Conta vinculada com sucesso!",
-      data: {
-        telegramId,
-        chatId,
-      },
+      message: "Conta vinculada com sucesso",
+      data: result.data,
     });
-  } catch (error: any) {
-    console.error("Erro ao vincular conta:", error);
+  } catch (error) {
+    console.error("[telegram-link] Erro ao vincular conta:", error);
     return NextResponse.json(
       { success: false, error: "Erro interno do servidor" },
       { status: 500 }

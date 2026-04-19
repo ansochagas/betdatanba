@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { CheckCircle, Circle, X } from "lucide-react";
+
 import { isGoldListEnabled } from "@/lib/feature-flags";
 
 type OnboardingStepId =
@@ -17,7 +18,7 @@ type OnboardingState = {
   dismissed: boolean;
 };
 
-const STORAGE_KEY = "cs2betdata-onboarding";
+const STORAGE_KEY = "betdatanba-onboarding";
 
 const steps: {
   id: OnboardingStepId;
@@ -28,32 +29,32 @@ const steps: {
   {
     id: "telegram",
     title: "Vincule o bot no Telegram",
-    description: "Conecte o bot para receber alertas e tips.",
-    cta: { label: "Vincular agora", href: "/minha-conta" },
+    description: "Conecte o bot oficial para receber notificacoes e futuros alertas live.",
+    cta: { label: "Abrir configuracoes", href: "/settings" },
   },
   {
     id: "alerts",
-    title: "Configure seus alertas",
-    description: "Escolha quais alertas deseja receber.",
-    cta: { label: "Abrir configurações", href: "/minha-conta" },
+    title: "Revise seus alertas",
+    description: "Confirme que sua conta esta pronta para receber mensagens no Telegram.",
+    cta: { label: "Ver integracao", href: "/settings" },
   },
   {
     id: "gold",
     title: "Explore Melhores do Dia",
-    description: "Veja os nomes mais fortes para apostar hoje.",
+    description: "Veja os jogos mais fortes do dia na sua rotina pre-jogo.",
     cta: { label: "Ir para Melhores do Dia", href: "/dashboard?tool=gold-list" },
   },
   {
     id: "live",
-    title: "Acompanhe o Dashboard Live",
-    description: "Monitore jogos ao vivo em tempo real.",
-    cta: { label: "Abrir Dashboard Live", href: "/dashboard?tool=live" },
+    title: "Acompanhe o painel Live",
+    description: "Monitore os jogos ao vivo e acompanhe a evolucao das oportunidades.",
+    cta: { label: "Abrir painel Live", href: "/dashboard?tool=live" },
   },
   {
     id: "upgrade",
-    title: "Ative ou renove seu plano",
-    description: "Garanta acesso completo às ferramentas.",
-    cta: { label: "Contratar plano", href: "/upgrade" },
+    title: "Mantenha seu plano ativo",
+    description: "Garanta acesso completo as ferramentas e alertas premium.",
+    cta: { label: "Ver planos", href: "/upgrade" },
   },
 ];
 
@@ -97,7 +98,7 @@ export default function OnboardingCard() {
 
   const dismiss = () => persist({ ...state, dismissed: true });
 
-  const completedAll = visibleSteps.every((s) => state.completedSteps.includes(s.id));
+  const completedAll = visibleSteps.every((step) => state.completedSteps.includes(step.id));
 
   if (!hydrated || state.dismissed) return null;
 
@@ -105,15 +106,12 @@ export default function OnboardingCard() {
     <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-6 shadow-lg shadow-black/30">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase text-orange-400 font-semibold">
-            Onboarding
-          </p>
+          <p className="text-xs uppercase text-orange-400 font-semibold">Onboarding</p>
           <h3 className="text-xl font-bold text-white mt-1">
-            Guia rápido para aproveitar a plataforma
+            Guia rapido para aproveitar a plataforma
           </h3>
           <p className="text-sm text-zinc-400 mt-1">
-            Complete os passos abaixo para receber alertas e acessar tudo sem
-            fricção.
+            Complete os passos abaixo para deixar sua conta pronta para pre-jogo, live e Telegram.
           </p>
         </div>
         <button
@@ -135,25 +133,17 @@ export default function OnboardingCard() {
             >
               <button
                 onClick={() => toggleStep(step.id)}
-                className={`mt-0.5 ${
-                  done ? "text-green-400" : "text-zinc-500"
-                }`}
-                aria-label={done ? "Marcar como não concluído" : "Marcar como concluído"}
+                className={`mt-0.5 ${done ? "text-green-400" : "text-zinc-500"}`}
+                aria-label={done ? "Marcar como nao concluido" : "Marcar como concluido"}
               >
-                {done ? (
-                  <CheckCircle className="w-5 h-5" />
-                ) : (
-                  <Circle className="w-5 h-5" />
-                )}
+                {done ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
               </button>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold text-white">
-                    {step.title}
-                  </h4>
+                  <h4 className="text-sm font-semibold text-white">{step.title}</h4>
                   {done && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 border border-green-500/40">
-                      Concluído
+                      Concluido
                     </span>
                   )}
                 </div>
@@ -176,25 +166,25 @@ export default function OnboardingCard() {
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <div className="text-xs text-zinc-400">
-          Progresso: {state.completedSteps.length}/{steps.length} passos
+          Progresso: {state.completedSteps.length}/{visibleSteps.length} passos
         </div>
         <button
           onClick={() =>
             persist({
               ...state,
-              completedSteps: steps.map((s) => s.id),
+              completedSteps: visibleSteps.map((step) => step.id),
             })
           }
           className="text-xs px-3 py-2 rounded-md border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 transition-colors"
         >
-          Marcar tudo concluído
+          Marcar tudo concluido
         </button>
         {completedAll && (
           <button
             onClick={dismiss}
             className="text-xs px-3 py-2 rounded-md border border-green-600 bg-green-600/10 text-green-200 hover:bg-green-600/20 transition-colors"
           >
-            Ocultar onboarding concluído
+            Ocultar onboarding concluido
           </button>
         )}
       </div>

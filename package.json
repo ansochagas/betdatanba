@@ -15,8 +15,15 @@
     "db:generate:postgres": "prisma generate --schema prisma/schema.postgres.prisma",
     "db:push:postgres": "prisma db push --schema prisma/schema.postgres.prisma",
     "db:migrate:sqlite-to-postgres": "node scripts/migrate-sqlite-to-postgres.js",
+    "access:grant": "tsx scripts/grant-user-access.ts",
+    "builder:local": "tsx scripts/run-nba-builder-local.ts",
+    "builder:settle:local": "tsx scripts/settle-nba-builder-local.ts",
+    "builder:report:local": "tsx scripts/report-nba-builder-local.ts",
     "check:railway-env": "node scripts/check-railway-env.js",
-    "telegram:worker": "node scripts/telegram-worker.js",
+    "telegram:worker": "tsx scripts/telegram-worker.ts",
+    "telegram:webhook:set": "tsx scripts/telegram-webhook.ts set",
+    "telegram:webhook:info": "tsx scripts/telegram-webhook.ts info",
+    "telegram:webhook:delete": "tsx scripts/telegram-webhook.ts delete",
     "lint": "eslint"
   },
   "dependencies": {
@@ -55,6 +62,7 @@
     "eslint-config-next": "^14.2.35",
     "postcss": "^8",
     "tailwindcss": "^3",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

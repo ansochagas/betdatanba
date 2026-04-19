@@ -19,6 +19,9 @@ const optional = [
   "MERCADOPAGO_WEBHOOK_URL",
   "POSTGRES_DATABASE_URL",
   "TELEGRAM_BOT_TOKEN",
+  "TELEGRAM_BOT_USERNAME",
+  "TELEGRAM_BOT_NAME",
+  "TELEGRAM_WEBHOOK_SECRET",
 ];
 
 const printList = (label, keys) => {

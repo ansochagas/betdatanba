@@ -51,6 +51,18 @@ Variaveis minimas:
 - `MERCADOPAGO_WEBHOOK_SECRET`
 - `API_BASKETBALL_KEY`
 - `BETSAPI_TOKEN`
+- `TELEGRAM_BOT_TOKEN` (se for ativar a integracao base do Telegram)
+
+Telegram no piloto:
+- a integracao base agora usa `webhook` no proprio app, sem depender de polling em producao
+- depois do deploy, rodar:
+  - `npm run telegram:webhook:set`
+- validar:
+  - `npm run telegram:webhook:info`
+- endpoint esperado:
+  - `APP_URL/api/telegram/webhook`
+- `TELEGRAM_WEBHOOK_SECRET` e opcional
+  - se vazio, o app deriva um segredo a partir do token do bot
 
 Rotas para validar apos o deploy:
 - `/api/health`
@@ -134,3 +146,4 @@ Motivo:
 8. validar checkout Mercado Pago
 9. validar webhook Mercado Pago
 10. registrar feedbacks e pontos de observabilidade
+11. se Telegram estiver ativo, validar `/settings`, vinculacao de conta e `npm run telegram:webhook:info`

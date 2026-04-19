@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const adminEmails = ["admin@csgoscout.com", "andersonchagas45@gmail.com"];
+const adminEmails = ["andersonchagas45@gmail.com"];
 
 function isAdmin(email?: string | null): boolean {
-  return !!email && adminEmails.includes(email);
+  return Boolean(email && adminEmails.includes(email));
 }
 
 type UnlinkRequestBody = {
@@ -22,13 +23,13 @@ export async function POST(request: NextRequest) {
 
     if (!session?.user?.email) {
       return NextResponse.json(
-        { success: false, error: "Usuário não autenticado" },
+        { success: false, error: "Usuario nao autenticado" },
         { status: 401 }
       );
     }
 
     const requesterEmail = session.user.email;
-    const requesterUserId = (session.user as any)?.id as string | undefined;
+    const requesterUserId = (session.user as { id?: string }).id;
 
     let body: UnlinkRequestBody = {};
     try {
@@ -39,7 +40,6 @@ export async function POST(request: NextRequest) {
 
     const targetUserId = typeof body.userId === "string" ? body.userId.trim() : "";
     const targetEmail = typeof body.email === "string" ? body.email.trim() : "";
-
     const hasAdminTarget = Boolean(targetUserId || targetEmail);
 
     if (hasAdminTarget && !isAdmin(requesterEmail)) {
@@ -63,12 +63,12 @@ export async function POST(request: NextRequest) {
 
     if (!targetUser) {
       return NextResponse.json(
-        { success: false, error: "Usuário não encontrado" },
+        { success: false, error: "Usuario nao encontrado" },
         { status: 404 }
       );
     }
 
-    const wasLinked = !!targetUser.telegramId;
+    const wasLinked = Boolean(targetUser.telegramId);
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: wasLinked
         ? "Telegram desvinculado com sucesso"
-        : "Conta já estava desvinculada",
+        : "Conta ja estava desvinculada",
       data: {
         userId: targetUser.id,
         email: targetUser.email,
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Erro ao desvincular Telegram:", error);
+    console.error("[telegram-unlink] Erro ao desvincular:", error);
     return NextResponse.json(
       { success: false, error: "Erro interno do servidor" },
       { status: 500 }
